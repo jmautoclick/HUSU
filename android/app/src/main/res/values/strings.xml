@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Husu Habits</string>
+    <string name="title_activity_main">Husu Habits</string>
+    <string name="package_name">com.husu.habits</string>
+    <string name="custom_url_scheme">com.husu.habits</string>
+</resources>

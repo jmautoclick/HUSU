@@ -1,0 +1,7 @@
+#!/usr/bin/expect
+spawn java -jar "/mnt/c/Users/JuanMa/Downloads/pepk (1).jar" --keystore=/mnt/c/Users/JuanMa/Projects/MisHabitosAndroid/husu.keystore --alias=husu_alias --output=/mnt/c/Users/JuanMa/Projects/MisHabitosAndroid/output_nuevo.zip --include-cert --rsa-aes-encryption --encryption-key-path="/mnt/c/Users/JuanMa/Downloads/encryption_public_key (1).pem"
+expect "Enter keystore password:"
+send "husupassword123\r"
+expect "Enter key password for <husu_alias>:"
+send "husupassword123\r"
+expect eof
