@@ -95,6 +95,26 @@ await sharp(playBuf).png().toFile(playStoreOut);
 console.log(`[gen-icons] BONUS: ${playStoreOut} (512x512 Play Store)`);
 total++;
 
+// ===== iOS App Icon =====
+// iOS 14+ usa un solo PNG 1024x1024 (Xcode genera los demás tamaños).
+// IMPORTANTE: iOS rechaza PNGs con alpha/transparencia en App Icon.
+// Por eso usamos app-icon-ios.svg (cuadrado, sin rx/ry).
+const iosIconSvg = join(ROOT, 'assets/app-icon-ios.svg');
+if (existsSync(iosIconSvg)) {
+  const iosOut = join(ROOT, 'ios/App/App/Assets.xcassets/AppIcon.appiconset/AppIcon-512@2x.png');
+  const iosSvgBuf = readFileSync(iosIconSvg);
+  // Render 1024x1024 + flatten para eliminar alpha (compose sobre clay si quedó algo)
+  const iosBuf = await renderSvg(iosSvgBuf, 1024);
+  await sharp(iosBuf)
+    .flatten({ background: '#C97B5A' })  // safety net: si quedó alpha, rellena con clay
+    .png({ compressionLevel: 9 })
+    .toFile(iosOut);
+  console.log(`[gen-icons] iOS: ${iosOut} (1024x1024, no alpha)`);
+  total++;
+} else {
+  console.log('[gen-icons] iOS: skipped (no app-icon-ios.svg)');
+}
+
 console.log('================================================');
 console.log(`[gen-icons] DONE - ${total} files generated`);
 console.log('================================================');
