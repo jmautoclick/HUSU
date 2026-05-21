@@ -9,7 +9,7 @@ import { lastWeekRecap } from './recap';
 import { isExpectedToday, expectedDaysInMonth } from './frequency';
 import { dateKey, parseDateKey } from './dates';
 
-type Intent =
+export type Intent =
   // Saludos / cortesía
   | 'greet' | 'thanks'
   // Progreso
@@ -36,6 +36,22 @@ interface Classification {
   habit?: Habit;
   score: number;
   originalQuestion?: string;
+  mood?: 'low' | 'neutral';
+}
+
+// Detección de mood bajo en el texto del user (frustración/cansancio/duda)
+const LOW_MOOD_MARKERS = [
+  'no doy mas', 'harto', 'cansado', 'cansada', 'agotado', 'agotada',
+  'para que', 'no sirve', 'nada me sale', 'no puedo', 'sin ganas',
+  'mal dia', 'estoy mal', 'me cuesta todo', 'odio', 'odiando',
+  'fracaso', 'rendirme', 'abandonar', 'dejar todo', 'no aguanto',
+];
+
+function detectMood(q: string): 'low' | 'neutral' {
+  for (const marker of LOW_MOOD_MARKERS) {
+    if (q.includes(marker)) return 'low';
+  }
+  return 'neutral';
 }
 
 const DOW_LABELS = ['domingos', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábados'];
@@ -152,17 +168,22 @@ function classify(question: string, habits: Habit[]): Classification {
     if (score > best.score) best = { intent: p.intent, score };
   }
 
-  // 3. Resolución:
-  //    - Si hay habit detectado Y ningún otro intent ganó con score ≥3 → specific_habit
-  //    - Si hay habit detectado Y ganó otro intent → mantener intent + adjuntar habit
-  //    - Si no hay habit, devolver intent ganador
+  // 3. Detectar mood
+  const mood = detectMood(q);
+
+  // Si hay low mood Y no preguntó algo específico → override a demotivated
+  if (mood === 'low' && best.score < 3) {
+    return { intent: 'demotivated', score: 10, habit: detectedHabit, mood };
+  }
+
+  // 4. Resolución habit + intent
   if (detectedHabit && best.score < 3) {
-    return { intent: 'specific_habit', habit: detectedHabit, score: 10 };
+    return { intent: 'specific_habit', habit: detectedHabit, score: 10, mood };
   }
   if (detectedHabit) {
-    return { ...best, habit: detectedHabit };
+    return { ...best, habit: detectedHabit, mood };
   }
-  return best;
+  return { ...best, mood };
 }
 
 function pick<T>(arr: T[]): T {
@@ -872,7 +893,7 @@ function sufficientEval(data: AppData): string {
   return `${Math.round(avg * 100)}% promedio. Honestamente: no es suficiente para que se vuelva automático. Pero la fórmula no es "esforzate más" — es "bajá la barra y sumá frecuencia".`;
 }
 
-function dailyBrief(data: AppData): string {
+export function dailyBrief(data: AppData): string {
   const today = new Date();
   const yesterday = new Date(today);
   yesterday.setDate(today.getDate() - 1);
@@ -1036,20 +1057,38 @@ export function followUpSuggestions(intent: Intent, _data: AppData): string[] {
 export interface CoachResult {
   text: string;
   followUps: string[];
+  intent: Intent;
 }
 
-export function getCoachResult(question: string, data: AppData): CoachResult {
+export function getCoachResult(question: string, data: AppData, recentIntents: Intent[] = []): CoachResult {
   if (data.habits.length === 0) {
     return {
       text: 'Todavía no tenés hábitos. Andá a la pestaña Hábitos y agregá tu primero — después podemos charlar.',
       followUps: [],
+      intent: 'fallback',
     };
   }
   const cls = classify(question, data.habits);
   cls.originalQuestion = question;
-  const text = compose(cls, data);
-  const followUps = followUpSuggestions(cls.intent, data);
-  return { text, followUps };
+  let text = compose(cls, data);
+
+  // Memoria light: si ya tocamos el mismo intent recientemente, agregar disclaimer
+  if (recentIntents.length >= 2 && recentIntents.slice(-2).every(i => i === cls.intent)) {
+    text = `(De vuelta sobre lo mismo, te lo digo distinto:)\n\n${text}`;
+  }
+
+  // Sentiment modulation: si user con mood bajo y respuesta NO es demotivated → suavizar
+  if (cls.mood === 'low' && cls.intent !== 'demotivated' && cls.intent !== 'celebrate') {
+    text = `Te leo cansado, así que primero te lo digo directo: está OK no estar al 100%.\n\n${text}`;
+  }
+
+  // Filtrar follow-ups que repitan los últimos 2 intents
+  let followUps = followUpSuggestions(cls.intent, data);
+  if (recentIntents.length > 0) {
+    // No relevante filtrar followUps por intent porque son textos. Skip.
+  }
+
+  return { text, followUps, intent: cls.intent };
 }
 
 function compose(cls: Classification, data: AppData): string {
