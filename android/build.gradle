@@ -32,12 +32,27 @@ allprojects {
 // toolchain isn't wired into javac for library subprojects.
 // Downgrading to 17 works because Capacitor 8 source doesn't actually use
 // Java 18-21 language features.
+//
+// IMPORTANT: We also force Kotlin's jvmTarget to 17 to match Java. Otherwise
+// Kotlin compile defaults to its own (21) and we get "Inconsistent JVM-target
+// compatibility detected for tasks compileReleaseJavaWithJavac (17) and
+// compileReleaseKotlin (21)" — Kotlin and javac must agree.
 subprojects {
     afterEvaluate { project ->
         if (project.hasProperty("android")) {
             project.android.compileOptions {
                 sourceCompatibility JavaVersion.VERSION_17
                 targetCompatibility JavaVersion.VERSION_17
+            }
+        }
+        // Match Kotlin JVM target to Java target (17). Filter by task name to
+        // avoid needing org.jetbrains.kotlin.gradle.tasks.KotlinCompile on
+        // the root buildscript classpath.
+        project.tasks.matching {
+            it.name.startsWith("compile") && it.name.endsWith("Kotlin")
+        }.configureEach { kotlinTask ->
+            kotlinTask.kotlinOptions {
+                jvmTarget = "17"
             }
         }
     }
