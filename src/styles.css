@@ -715,6 +715,50 @@ h1, h2, h3, .display {
   margin-top: 2px; line-height: 1.4;
 }
 
+/* Proactive insight banner */
+.proactive-insight {
+  background: linear-gradient(135deg, rgba(122, 155, 126, 0.15), rgba(184, 197, 193, 0.10));
+  border: 1px solid rgba(122, 155, 126, 0.35);
+  border-radius: 14px;
+  padding: 12px 14px;
+  font-size: 13px;
+  color: var(--text);
+  line-height: 1.4;
+  margin-bottom: 12px;
+}
+
+.suggestion-list {
+  display: flex; flex-direction: column; gap: 4px;
+  margin-top: 6px;
+}
+.suggestion-hint {
+  font-size: 11px; color: var(--text-faint);
+  text-align: center; margin-top: 12px;
+  line-height: 1.4;
+  font-style: italic;
+}
+
+/* Follow-up chips inline después de respuesta del bot */
+.follow-ups {
+  display: flex; flex-wrap: wrap; gap: 6px;
+  margin: 2px 0 12px 0;
+  padding-left: 4px;
+}
+.follow-up-chip {
+  background: var(--shade-soft);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 6px 12px;
+  font-size: 11px;
+  color: var(--text-dim);
+  font-weight: 600;
+  transition: background 0.15s, color 0.15s;
+}
+.follow-up-chip:active {
+  background: var(--clay-soft);
+  color: var(--clay);
+}
+
 /* Thinking indicator */
 .chat-bubble.thinking {
   display: inline-flex; gap: 4px;
