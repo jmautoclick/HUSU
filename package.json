@@ -14,7 +14,7 @@
     "fix:spm": "node scripts/fix-spm-paths.mjs",
     "gen:icons": "node scripts/generate-android-icons.mjs",
     "prep:ios": "node scripts/prep-ios-for-eas.mjs",
-    "eas:ios": "npm run prep:ios && npx eas-cli@^19 build -p ios --profile production --auto-submit --non-interactive",
+    "eas:ios": "npm run prep:ios && npx eas-cli@^19 build -p ios --profile production --auto-submit",
     "eas:android": "npx eas-cli@^19 build -p android --profile production --auto-submit --non-interactive",
     "eas:preview:ios": "npm run prep:ios && npx eas-cli@^19 build -p ios --profile preview",
     "eas:preview:android": "npx eas-cli@^19 build -p android --profile preview",
