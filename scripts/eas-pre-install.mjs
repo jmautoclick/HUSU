@@ -66,4 +66,18 @@ if (platform === 'ios') {
   console.log(`[eas-pre-install] Skip iOS prep (platform=${platform})`);
 }
 
+// Fix npm bug con optional deps cross-platform:
+// package-lock.json generado en Windows no incluye los bindings nativos
+// de Linux para rolldown/vite. Borramos el lock acá para forzar resolución
+// fresca en el server EAS, que va a fetchear los .node correctos para Linux.
+// Ref: https://github.com/npm/cli/issues/4828
+if (existsSync('package-lock.json') && process.platform === 'linux') {
+  try {
+    unlinkSync('package-lock.json');
+    console.log('[eas-pre-install] Removed package-lock.json to force cross-platform deps resolution');
+  } catch (e) {
+    console.warn('[eas-pre-install] Could not remove package-lock.json:', e.message);
+  }
+}
+
 console.log('[eas-pre-install] DONE ✓');
