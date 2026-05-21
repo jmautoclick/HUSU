@@ -1,3 +1,10 @@
+// Plugin para auto-descargar JDK toolchains que falten (ej: Java 21 requerido
+// por capacitor-filesystem v8 cuando el build server solo tiene JDK 17).
+// Resuelve via Foojay Disco API + Adoptium.
+plugins {
+    id 'org.gradle.toolchains.foojay-resolver-convention' version '0.8.0'
+}
+
 include ':app'
 include ':capacitor-cordova-android-plugins'
 project(':capacitor-cordova-android-plugins').projectDir = new File('./capacitor-cordova-android-plugins/')
