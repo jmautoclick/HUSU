@@ -24,6 +24,25 @@ allprojects {
     }
 }
 
+// Force all Android library modules (capacitor-android, capacitor-filesystem,
+// capacitor-haptics, etc.) to compile against Java 17, because the EAS Linux
+// build image's javac is JDK 17. Capacitor 8 declares sourceCompatibility=21
+// in its own modules as a forward-compat marker, but that breaks compilation
+// here ("invalid source release: 21") because foojay's downloaded JDK 21
+// toolchain isn't wired into javac for library subprojects.
+// Downgrading to 17 works because Capacitor 8 source doesn't actually use
+// Java 18-21 language features.
+subprojects {
+    afterEvaluate { project ->
+        if (project.hasProperty("android")) {
+            project.android.compileOptions {
+                sourceCompatibility JavaVersion.VERSION_17
+                targetCompatibility JavaVersion.VERSION_17
+            }
+        }
+    }
+}
+
 task clean(type: Delete) {
     delete rootProject.buildDir
 }
