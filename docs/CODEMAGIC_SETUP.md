@@ -72,7 +72,18 @@ Después de activado el dev account:
    - Primary Language: Spanish (Argentina)
    - Bundle ID: `com.husu.habits` (registralo previamente en developer.apple.com → Certificates, Identifiers & Profiles → Identifiers → + → App IDs → App)
    - SKU: `husu-habits-001`
-3. Anotar el **Apple ID numérico** que te asigna (10 dígitos) — actualizar en `codemagic.yaml` línea `APP_STORE_APPLE_ID: 1234567890`
+3. Anotar el **Apple ID numérico** que te asigna (10 dígitos) — lo vas a poner como env variable en Codemagic en el paso 5b (NO en el yaml — más seguro y portable)
+
+### Paso 5b — Environment variable en Codemagic
+
+Después del paso 5 (API Key), en Codemagic:
+1. Project Settings → **Environment variables**
+2. **Add new group**: nombre `app_store_credentials`
+3. Dentro del grupo, agregar variable:
+   - **Variable name**: `APP_STORE_APPLE_ID`
+   - **Variable value**: el número de 10 dígitos del paso 4
+   - **Secure**: no hace falta (no es secreto, solo un ID)
+4. Save
 
 ## Paso 5 — App Store Connect API Key (para Codemagic)
 
