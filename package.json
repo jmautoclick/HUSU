@@ -7,7 +7,14 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "lint": "eslint .",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "cap:sync": "npm run build && npx cap sync",
+    "eas:ios": "npm run build && npx cap sync ios && eas build -p ios --profile production --auto-submit --non-interactive",
+    "eas:android": "npm run build && npx cap sync android && eas build -p android --profile production --auto-submit --non-interactive",
+    "eas:preview:ios": "npm run build && npx cap sync ios && eas build -p ios --profile preview",
+    "eas:preview:android": "npm run build && npx cap sync android && eas build -p android --profile preview",
+    "eas-build-pre-install": "echo '[EAS] pre-install Husu Habits build'",
+    "eas-build-post-install": "npm run build && npx cap sync $EAS_BUILD_PLATFORM 2>/dev/null || npm run build && npx cap sync"
   },
   "dependencies": {
     "@capacitor/android": "^8.3.3",

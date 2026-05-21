@@ -47,5 +47,7 @@
 	<string>UIStatusBarStyleLightContent</string>
 	<key>NSUserNotificationsUsageDescription</key>
 	<string>Husu te recuerda tus hábitos a la hora que vos elijas.</string>
+	<key>ITSAppUsesNonExemptEncryption</key>
+	<false/>
 </dict>
 </plist>
