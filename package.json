@@ -12,6 +12,7 @@
     "cap:sync:ios": "npm run build && npx cap sync ios && node scripts/fix-spm-paths.mjs",
     "cap:sync:android": "npm run build && npx cap sync android",
     "fix:spm": "node scripts/fix-spm-paths.mjs",
+    "gen:icons": "node scripts/generate-android-icons.mjs",
     "prep:ios": "node scripts/prep-ios-for-eas.mjs",
     "eas:ios": "npm run prep:ios && npx eas-cli@^19 build -p ios --profile production --auto-submit --non-interactive",
     "eas:android": "npx eas-cli@^19 build -p android --profile production --auto-submit --non-interactive",
@@ -45,6 +46,7 @@
     "eslint-plugin-react-hooks": "^7.1.1",
     "eslint-plugin-react-refresh": "^0.5.2",
     "globals": "^17.5.0",
+    "sharp": "^0.34.5",
     "typescript": "~6.0.2",
     "typescript-eslint": "^8.58.2",
     "vite": "^8.0.10"

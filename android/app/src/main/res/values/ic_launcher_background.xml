@@ -1,4 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!--
+  Husu Habits: clay color (#C97B5A).
+  No usado activamente — el adaptive icon usa @drawable/ic_launcher_background
+  (vector con gradiente). Lo mantenemos por compat con launchers legacy
+  que podrían referenciarlo.
+-->
 <resources>
-    <color name="ic_launcher_background">#FFFFFF</color>
+    <color name="ic_launcher_background">#C97B5A</color>
 </resources>
