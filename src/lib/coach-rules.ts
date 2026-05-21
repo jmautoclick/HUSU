@@ -26,12 +26,16 @@ type Intent =
   // Identidad / mood
   | 'identity' | 'motivate_me' | 'celebrate' | 'demotivated'
   // Reflexión
-  | 'journal_review' | 'fallback';
+  | 'journal_review'
+  // NUEVO en 2.1
+  | 'yesterday' | 'time_since' | 'compare_habits' | 'today_outlook' | 'sufficient_eval'
+  | 'daily_brief' | 'fallback';
 
 interface Classification {
   intent: Intent;
   habit?: Habit;
   score: number;
+  originalQuestion?: string;
 }
 
 const DOW_LABELS = ['domingos', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábados'];
@@ -103,6 +107,14 @@ const INTENT_PATTERNS: IntentPattern[] = [
 
   // Reflexión
   { intent: 'journal_review', keywords: ['mis notas', 'que escribi', 'leeme las notas', 'journal', 'que reflexione'], weight: 3 },
+
+  // NUEVO en 2.1 — queries temporales
+  { intent: 'yesterday', keywords: ['ayer', 'como me fue ayer', 'el dia de ayer'], weight: 3 },
+  { intent: 'time_since', keywords: ['hace cuanto', 'cuanto hace que', 'cuanto tiempo sin', 'ultima vez que'], weight: 3 },
+  { intent: 'compare_habits', keywords: ['compara', 'compari', 'companame', 'diferencia entre', 'vs', 'versus'], weight: 3 },
+  { intent: 'today_outlook', keywords: ['hoy tengo', 'que tengo hoy', 'plan de hoy', 'que me toca hoy', 'agenda de hoy'], weight: 3 },
+  { intent: 'sufficient_eval', keywords: ['hago suficiente', 'estoy haciendo lo suficiente', 'es bastante', 'soy constante', 'mi nivel'], weight: 3 },
+  { intent: 'daily_brief', keywords: ['brief', 'resumen del dia', 'arrancame el dia', 'dame mi resumen'], weight: 3 },
 ];
 
 function anyOf(text: string, words: string[]): boolean {
@@ -112,35 +124,44 @@ function anyOf(text: string, words: string[]): boolean {
 function classify(question: string, habits: Habit[]): Classification {
   const q = normalize(question);
 
-  // 1. Hábito específico mencionado por nombre tiene prioridad alta
+  // 1. Detectar habit mencionado (sin cortocircuitar — solo guardar referencia)
+  // Match: nombre completo, palabra completa de >3 chars, o prefix de 5+ chars
+  // (para soportar conjugaciones: "entreno"/"entrena" matchean "entrenar")
+  let detectedHabit: Habit | undefined;
   for (const h of habits) {
     const hName = normalize(h.name);
-    if (q.includes(hName)) {
-      return { intent: 'specific_habit', habit: h, score: 10 };
-    }
+    if (q.includes(hName)) { detectedHabit = h; break; }
     const words = hName.split(/\s+/).filter(w => w.length > 3 && !['para', 'estar', 'estoy', 'minutos', 'minuto', 'dias', 'esta', 'pre-sueño', 'sueño'].includes(w));
     for (const w of words) {
-      if (new RegExp(`\\b${w}\\b`).test(q)) {
-        return { intent: 'specific_habit', habit: h, score: 7 };
-      }
+      if (new RegExp(`\\b${w}\\b`).test(q)) { detectedHabit = h; break; }
+      // prefix match (raíz verbal/sustantiva)
+      if (w.length >= 5 && new RegExp(`\\b${w.slice(0, 5)}\\w*\\b`).test(q)) { detectedHabit = h; break; }
     }
+    if (detectedHabit) break;
   }
 
-  // 2. Score-based matching
+  // 2. Score-based matching contra todos los intents
   let best: Classification = { intent: 'fallback', score: 0 };
   for (const p of INTENT_PATTERNS) {
     const weight = p.weight ?? 1;
     let score = 0;
     for (const kw of p.keywords) {
-      if (q.includes(kw)) {
-        // Bonus por keyword larga (más específica)
-        score += weight + (kw.length > 12 ? 2 : 0);
-      }
+      if (q.includes(kw)) score += weight + (kw.length > 12 ? 2 : 0);
     }
     if (p.required && !anyOf(q, p.required)) continue;
     if (score > best.score) best = { intent: p.intent, score };
   }
 
+  // 3. Resolución:
+  //    - Si hay habit detectado Y ningún otro intent ganó con score ≥3 → specific_habit
+  //    - Si hay habit detectado Y ganó otro intent → mantener intent + adjuntar habit
+  //    - Si no hay habit, devolver intent ganador
+  if (detectedHabit && best.score < 3) {
+    return { intent: 'specific_habit', habit: detectedHabit, score: 10 };
+  }
+  if (detectedHabit) {
+    return { ...best, habit: detectedHabit };
+  }
   return best;
 }
 
@@ -715,6 +736,181 @@ function fallbackResponse(data: AppData): string {
   ]);
 }
 
+// ============ Nuevos composers 2.1 ============
+
+function yesterdayResponse(data: AppData): string {
+  const today = new Date();
+  const yesterday = new Date(today);
+  yesterday.setDate(today.getDate() - 1);
+  const k = dateKey(yesterday);
+  const day = data.completions[k] ?? {};
+  const expected = data.habits.filter(h => isExpectedToday(h, yesterday, data.completions));
+  if (expected.length === 0) return 'Ayer no te tocaba nada (sin hábitos esperados ese día).';
+  const done = expected.filter(h => day[h.id]?.done);
+  const missing = expected.filter(h => !day[h.id]?.done);
+  if (done.length === expected.length) {
+    return `Ayer fue **día perfecto** 🌟 — cumpliste los ${expected.length}. Aprovechá esa inercia hoy.`;
+  }
+  if (done.length === 0) {
+    return `Ayer no marcaste nada (${expected.length} esperados). Pasa. Lo importante: hoy volver chiquito a uno.`;
+  }
+  const rate = Math.round((done.length / expected.length) * 100);
+  const doneNames = done.slice(0, 3).map(h => `"${h.name}"`).join(', ');
+  const missNames = missing.slice(0, 2).map(h => `"${h.name}"`).join(', ');
+  return `Ayer cumpliste **${done.length}/${expected.length}** (${rate}%). Hechos: ${doneNames}. Faltó: ${missNames}.`;
+}
+
+function timeSinceResponse(data: AppData, habit?: Habit): string {
+  const target = habit ?? mostAbandonedHabit(data);
+  if (!target) return 'Necesito saber de qué hábito hablás. Probá: "hace cuánto que no [nombre del hábito]".';
+  const today = new Date();
+  let lastDone: Date | null = null;
+  for (const [k, day] of Object.entries(data.completions)) {
+    if (!day[target.id]?.done) continue;
+    const d = parseDateKey(k);
+    if (!lastDone || d > lastDone) lastDone = d;
+  }
+  if (!lastDone) return `Nunca marcaste "${target.name}" todavía. ¿Empezamos hoy?`;
+  const days = Math.floor((today.getTime() - lastDone.getTime()) / (24 * 60 * 60 * 1000));
+  if (days === 0) return `Hoy marcaste "${target.name}" ✓`;
+  if (days === 1) return `"${target.name}" — última vez ayer. Estás al día.`;
+  if (days <= 3) return `"${target.name}" — hace ${days} días que no. Todavía cerca.`;
+  if (days <= 14) return `"${target.name}" — hace ${days} días que no. Buen momento para volver con la versión chiquita.`;
+  if (days <= 60) return `"${target.name}" — hace ${days} días que no. La identidad se enfría. ¿Lo querés recuperar o sacar?`;
+  return `"${target.name}" — hace ${days} días que no. Honestamente, capaz que ya no es para esta etapa. Pensalo.`;
+}
+
+function mostAbandonedHabit(data: AppData): Habit | undefined {
+  const today = new Date();
+  let worst: { h: Habit; days: number } | null = null;
+  for (const h of data.habits) {
+    let lastDone: Date | null = null;
+    for (const [k, day] of Object.entries(data.completions)) {
+      if (!day[h.id]?.done) continue;
+      const d = parseDateKey(k);
+      if (!lastDone || d > lastDone) lastDone = d;
+    }
+    const days = lastDone ? Math.floor((today.getTime() - lastDone.getTime()) / (24 * 60 * 60 * 1000)) : 9999;
+    if (!worst || days > worst.days) worst = { h, days };
+  }
+  return worst?.h;
+}
+
+function compareHabits(data: AppData, q: string): string {
+  // Intentar identificar 2 hábitos mencionados
+  const qn = normalize(q);
+  const mentioned: Habit[] = [];
+  for (const h of data.habits) {
+    const hn = normalize(h.name);
+    const firstWord = hn.split(/\s+/).filter(w => w.length > 3)[0];
+    if (qn.includes(hn) || (firstWord && new RegExp(`\\b${firstWord}\\b`).test(qn))) {
+      mentioned.push(h);
+    }
+  }
+  if (mentioned.length < 2) {
+    return 'Necesito 2 hábitos para comparar. Probá: "compará leer con meditar" (o los nombres que tengas).';
+  }
+  const [a, b] = mentioned.slice(0, 2);
+  const today = new Date();
+  const start = new Date(today.getFullYear(), today.getMonth(), 1);
+  function rateFor(h: Habit): number {
+    let exp = 0, done = 0;
+    for (let d = new Date(start); d <= today; d.setDate(d.getDate() + 1)) {
+      if (!isExpectedToday(h, d, data.completions)) continue;
+      exp++;
+      if (data.completions[dateKey(d)]?.[h.id]?.done) done++;
+    }
+    return exp > 0 ? done / exp : 0;
+  }
+  const ra = Math.round(rateFor(a) * 100);
+  const rb = Math.round(rateFor(b) * 100);
+  const sa = currentStreak(a, data.completions, today, data.freezesUsed);
+  const sb = currentStreak(b, data.completions, today, data.freezesUsed);
+  const lines: string[] = [];
+  lines.push(`**"${a.name}"**: ${ra}% este mes · racha ${sa}`);
+  lines.push(`**"${b.name}"**: ${rb}% este mes · racha ${sb}`);
+  if (ra > rb + 10) lines.push(`\n"${a.name}" va mejor. Quizás el cue o el momento del día funciona mejor para ese.`);
+  else if (rb > ra + 10) lines.push(`\n"${b.name}" va mejor. Estudiá qué tiene diferente del otro.`);
+  else lines.push('\nParejos. Estás aplicando un sistema consistente entre los dos.');
+  return lines.join('\n');
+}
+
+function todayOutlook(data: AppData): string {
+  const today = new Date();
+  const expected = data.habits.filter(h => isExpectedToday(h, today, data.completions));
+  if (expected.length === 0) return 'Hoy no te toca nada — día libre. Aprovechá para descansar o leer un rato.';
+  const done = expected.filter(h => data.completions[dateKey(today)]?.[h.id]?.done);
+  const remaining = expected.filter(h => !data.completions[dateKey(today)]?.[h.id]?.done);
+  if (remaining.length === 0) return `Hoy ya completaste los ${expected.length} hábitos del día. **Día perfecto** 🌟`;
+
+  const hour = today.getHours();
+  const intro = hour < 11 ? 'Hoy te tocan' :
+                hour < 17 ? 'Te quedan' :
+                hour < 21 ? 'Te quedan para hoy' :
+                'Antes de dormir te quedan';
+  const list = remaining.slice(0, 5).map(h => `• ${h.emoji ?? ''} ${h.name}`).join('\n');
+  return `${intro} **${remaining.length}** ${remaining.length === 1 ? 'hábito' : 'hábitos'} (ya hiciste ${done.length}):\n${list}`;
+}
+
+function sufficientEval(data: AppData): string {
+  const today = new Date();
+  const start = new Date(today.getFullYear(), today.getMonth(), 1);
+  let totalRate = 0, n = 0;
+  for (const h of data.habits) {
+    let exp = 0, done = 0;
+    for (let d = new Date(start); d <= today; d.setDate(d.getDate() + 1)) {
+      if (!isExpectedToday(h, d, data.completions)) continue;
+      exp++;
+      if (data.completions[dateKey(d)]?.[h.id]?.done) done++;
+    }
+    if (exp > 0) { totalRate += done / exp; n++; }
+  }
+  const avg = n > 0 ? totalRate / n : 0;
+  if (avg >= 0.9) return `Honestamente: estás haciendo de más, casi. ${Math.round(avg * 100)}% promedio. Cuidate de no entrar en perfeccionismo — descansar también es parte.`;
+  if (avg >= 0.75) return `Sí, ${Math.round(avg * 100)}% promedio es **muy sólido**. No estás "ahorrando para mejor mes", esto YA es ese mes.`;
+  if (avg >= 0.5) return `${Math.round(avg * 100)}% promedio — vas bien pero no es zona de identidad consolidada. Apuntá a ${Math.round(avg * 100) + 15}% el mes que viene.`;
+  return `${Math.round(avg * 100)}% promedio. Honestamente: no es suficiente para que se vuelva automático. Pero la fórmula no es "esforzate más" — es "bajá la barra y sumá frecuencia".`;
+}
+
+function dailyBrief(data: AppData): string {
+  const today = new Date();
+  const yesterday = new Date(today);
+  yesterday.setDate(today.getDate() - 1);
+  const yk = dateKey(yesterday);
+
+  // Linea 1: ayer
+  const yExpected = data.habits.filter(h => isExpectedToday(h, yesterday, data.completions));
+  const yDone = yExpected.filter(h => data.completions[yk]?.[h.id]?.done).length;
+  const yLine = yExpected.length === 0 ? '' :
+    yDone === yExpected.length ? `**Ayer**: día perfecto 🌟 (${yDone}/${yExpected.length}). ` :
+    yDone === 0 ? `**Ayer**: 0/${yExpected.length}. Hoy es nuevo. ` :
+    `**Ayer**: ${yDone}/${yExpected.length}. `;
+
+  // Linea 2: hoy
+  const tExpected = data.habits.filter(h => isExpectedToday(h, today, data.completions));
+  const tDone = tExpected.filter(h => data.completions[dateKey(today)]?.[h.id]?.done).length;
+  const tLine = tExpected.length === 0 ? '**Hoy**: día libre.' :
+    tDone === tExpected.length ? `**Hoy**: ya cumpliste los ${tExpected.length} 🌟` :
+    `**Hoy**: ${tDone}/${tExpected.length} hasta ahora.`;
+
+  // Linea 3: focus del día (hábito más importante hoy)
+  const remaining = tExpected.filter(h => !data.completions[dateKey(today)]?.[h.id]?.done);
+  const focus = remaining.find(h => {
+    const s = currentStreak(h, data.completions, today, data.freezesUsed);
+    return s >= 3;
+  }) ?? remaining[0];
+
+  let focusLine = '';
+  if (focus) {
+    const s = currentStreak(focus, data.completions, today, data.freezesUsed);
+    if (s >= 7) focusLine = `\n**Foco**: "${focus.name}" — racha de ${s} días, no la rompas.`;
+    else if (s >= 3) focusLine = `\n**Foco**: "${focus.name}" — ${s} días seguidos, construyendo momentum.`;
+    else focusLine = `\n**Foco**: ${focus.emoji ?? ''} "${focus.name}" como anclaje del día.`;
+  }
+
+  return yLine + tLine + focusLine;
+}
+
 // ============ Proactive insight ============
 
 export function proactiveInsight(data: AppData): string | null {
@@ -722,22 +918,41 @@ export function proactiveInsight(data: AppData): string | null {
   const today = new Date();
   const hour = today.getHours();
 
+  // PRIORIDAD 1 — STREAK AT RISK: racha activa ≥7 días + hábito esperado hoy + no marcado + tarde
+  if (hour >= 18) {
+    for (const h of data.habits) {
+      if (!isExpectedToday(h, today, data.completions)) continue;
+      if (data.completions[dateKey(today)]?.[h.id]?.done) continue;
+      const s = currentStreak(h, data.completions, today, data.freezesUsed);
+      if (s >= 7) {
+        return `⚠️ Tu racha de **${s} días** en "${h.name}" está en juego. Quedan ${24 - hour}h del día. Si está muy difícil, hacé la versión chiquita (2 minutos).`;
+      }
+    }
+  }
+
   // Domingo a la noche → invitar a revisar la semana
   if (today.getDay() === 0 && hour >= 18) {
-    return '🐼 Domingo a la noche — ¿revisamos cómo fue la semana?';
+    return '🐼 Domingo a la noche — ¿revisamos cómo fue la semana? Tocá "Mi progreso" → "¿Cómo va mi semana?"';
   }
   // Lunes a la mañana → motivar
   if (today.getDay() === 1 && hour < 12) {
-    return '🐼 Lunes a la mañana. Recordá: empezá con uno solo, lo más chiquito.';
+    return '🐼 Lunes a la mañana. Regla simple: empezá con UN hábito hoy, el más fácil. Si lo cumplís, ganaste el lunes.';
   }
-  // Si hay una racha de >30 días, destacarla
+  // Viernes a la mañana → motivar para cerrar la semana
+  if (today.getDay() === 5 && hour < 12) {
+    return '🐼 Viernes — un empuje más para cerrar la semana fuerte. Los hábitos del finde son los más difíciles, prepará el contexto desde ya.';
+  }
+  // Racha milestone (cada 10 días arriba de 30)
   for (const h of data.habits) {
     const s = currentStreak(h, data.completions, today, data.freezesUsed);
     if (s >= 30 && s % 10 === 0) {
-      return `🔥 Tu racha de ${s} días en "${h.name}" es para celebrar. Estás en zona de identidad construida.`;
+      return `🔥 Tu racha de **${s} días** en "${h.name}" es para celebrar. Estás en zona de identidad construida.`;
+    }
+    if (s === 66) {
+      return `🌳 **66 días** en "${h.name}" — la mediana real para automatizar un hábito (Lally 2010). YA es parte de vos.`;
     }
   }
-  // Si hay hábito abandonado >14 días
+  // Hábito abandonado entre 14 y 30 días
   for (const h of data.habits) {
     let lastDone: Date | null = null;
     for (const [k, day] of Object.entries(data.completions)) {
@@ -749,7 +964,7 @@ export function proactiveInsight(data: AppData): string | null {
     if (lastDone) {
       const days = Math.floor((today.getTime() - lastDone.getTime()) / (24 * 60 * 60 * 1000));
       if (days >= 14 && days <= 30) {
-        return `Hace ${days} días que no tocás "${h.name}". ¿Hablamos?`;
+        return `Hace **${days} días** que no tocás "${h.name}". ¿Hablamos? Capaz no es el momento, o solo cambió el cue.`;
       }
     }
   }
@@ -757,6 +972,11 @@ export function proactiveInsight(data: AppData): string | null {
   const patterns = detectPatterns(data);
   if (patterns.length > 0) {
     return `🐼 Noté esto: ${patterns[0].text}`;
+  }
+  // Si nada interesante → mensaje de bienvenida con dato chiquito
+  const totalChecks = Object.values(data.completions).reduce((sum, day) => sum + Object.values(day).filter(e => e.done).length, 0);
+  if (totalChecks > 0) {
+    return `🐼 Llevás **${totalChecks.toLocaleString('es-AR')} checks totales**. Hoy es un voto más. ¿Charlamos?`;
   }
   return null;
 }
@@ -791,6 +1011,21 @@ export function followUpSuggestions(intent: Intent, _data: AppData): string[] {
       return ['Tip para acelerar', '¿Cuál llego?', '¿Estoy listo para sumar?'];
     case 'habit_suggestion':
       return ['¿Estoy listo para sumar?', 'Tip para arrancar uno nuevo', '¿Cuándo se forma?'];
+    case 'yesterday':
+      return ['¿Cómo voy este mes?', '¿Qué tengo hoy?', 'Dame un consejo'];
+    case 'time_since':
+      return ['¿Cómo arranco después de fallar?', 'Tip para bajar la fricción', '¿Cuál abandoné más?'];
+    case 'compare_habits':
+      return ['¿Qué hábito es mi mejor?', 'Tip de habit stacking', '¿Qué patrón hay?'];
+    case 'today_outlook':
+      return ['Dame un consejo', 'Motivame', '¿Cómo voy este mes?'];
+    case 'sufficient_eval':
+      return ['¿Cómo voy este mes?', 'Tip para mantener la racha', '¿Estoy listo para sumar?'];
+    case 'daily_brief':
+      return ['¿Qué tengo hoy?', 'Dame un consejo', 'Motivame'];
+    case 'motivate_me':
+    case 'demotivated':
+      return ['Dame un tip de recuperación', '¿Quién soy en hábitos?', '¿Cuál es mi mejor racha?'];
     default:
       return ['¿Cómo voy este mes?', 'Dame un consejo', '¿Qué día fallo más?'];
   }
@@ -811,6 +1046,7 @@ export function getCoachResult(question: string, data: AppData): CoachResult {
     };
   }
   const cls = classify(question, data.habits);
+  cls.originalQuestion = question;
   const text = compose(cls, data);
   const followUps = followUpSuggestions(cls.intent, data);
   return { text, followUps };
@@ -852,6 +1088,13 @@ function compose(cls: Classification, data: AppData): string {
     case 'demotivated': return demotivated(data);
     case 'celebrate': return celebrateResponse();
     case 'journal_review': return journalReview(data);
+    // 2.1
+    case 'yesterday': return yesterdayResponse(data);
+    case 'time_since': return timeSinceResponse(data, cls.habit);
+    case 'compare_habits': return compareHabits(data, cls.originalQuestion ?? '');
+    case 'today_outlook': return todayOutlook(data);
+    case 'sufficient_eval': return sufficientEval(data);
+    case 'daily_brief': return dailyBrief(data);
     default: return fallbackResponse(data);
   }
 }
@@ -876,12 +1119,15 @@ export const SUGGESTION_CATEGORIES: SuggestionCategory[] = [
     emoji: '📊',
     label: 'Mi progreso',
     questions: [
+      'Dame mi resumen del día',
+      '¿Cómo me fue ayer?',
       '¿Cómo voy este mes?',
       '¿Cómo va mi semana?',
       '¿Cuántos días perfectos llevo?',
       '¿Cuántos hábitos completé en total?',
       'Mostrame mis números del año',
       'Proyectame cómo termino el mes',
+      '¿Hago suficiente?',
     ],
   },
   {
@@ -902,10 +1148,13 @@ export const SUGGESTION_CATEGORIES: SuggestionCategory[] = [
     emoji: '💪',
     label: 'Sobre mis hábitos',
     questions: [
+      '¿Qué tengo hoy?',
       '¿Cuál es mi mejor hábito?',
       '¿Cuál necesita más atención?',
       '¿Cuál es mi racha más larga ahora?',
       '¿Cuál estoy abandonando?',
+      '¿Hace cuánto que no?',
+      'Comparame dos hábitos',
       'Analizame mi hábito principal',
       'Leeme mis notas',
     ],

@@ -743,6 +743,11 @@ h1, h2, h3, .display {
   display: flex; flex-wrap: wrap; gap: 6px;
   margin: 2px 0 12px 0;
   padding-left: 4px;
+  animation: fadeUp 0.4s ease-out;
+}
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 .follow-up-chip {
   background: var(--shade-soft);
@@ -754,9 +759,20 @@ h1, h2, h3, .display {
   font-weight: 600;
   transition: background 0.15s, color 0.15s;
 }
+.follow-up-chip:hover { background: var(--clay-soft); color: var(--clay); }
 .follow-up-chip:active {
   background: var(--clay-soft);
   color: var(--clay);
+}
+
+/* Bold dentro de las burbujas del chat */
+.chat-bubble strong {
+  color: var(--clay);
+  font-weight: 800;
+}
+.proactive-insight strong {
+  color: var(--sage);
+  font-weight: 800;
 }
 
 /* Thinking indicator */
