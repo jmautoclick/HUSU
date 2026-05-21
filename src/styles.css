@@ -518,6 +518,7 @@ h1, h2, h3, .display {
   display: flex;
   gap: 8px;
   padding: 14px 20px;
+  padding-bottom: max(14px, env(safe-area-inset-bottom));
   background: var(--bg-card-solid);
   border-top: 1px solid var(--border);
   flex-shrink: 0;
@@ -616,9 +617,12 @@ h1, h2, h3, .display {
 
 /* Toast / milestone */
 .toast-wrap {
-  position: fixed; top: 20px; left: 0; right: 0;
+  position: fixed;
+  top: max(20px, env(safe-area-inset-top));
+  left: 0; right: 0;
   display: flex; justify-content: center;
   z-index: 300; pointer-events: none;
+  padding-left: 16px; padding-right: 16px;
 }
 .toast {
   pointer-events: auto;

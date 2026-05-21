@@ -1,3 +1,6 @@
+import { Capacitor } from '@capacitor/core';
+import { Filesystem, Directory } from '@capacitor/filesystem';
+import { Share } from '@capacitor/share';
 import type { WeekRecap } from './recap';
 import { colorFor } from './colors';
 
@@ -85,11 +88,54 @@ function formatRange(a: Date, b: Date): string {
   return `${a.getDate()} ${m[a.getMonth()]} — ${b.getDate()} ${m[b.getMonth()]} ${b.getFullYear()}`;
 }
 
+async function blobToBase64(blob: Blob): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      const result = reader.result as string;
+      // strip "data:image/png;base64," prefix
+      const comma = result.indexOf(',');
+      resolve(comma >= 0 ? result.slice(comma + 1) : result);
+    };
+    reader.onerror = () => reject(reader.error);
+    reader.readAsDataURL(blob);
+  });
+}
+
 export async function shareRecap(recap: WeekRecap): Promise<void> {
   const blob = await renderRecapCard(recap);
-  const file = new File([blob], `husu-semana-${recap.weekEnd.toISOString().slice(0, 10)}.png`, { type: 'image/png' });
+  const filename = `husu-semana-${recap.weekEnd.toISOString().slice(0, 10)}.png`;
 
-  if (typeof navigator !== 'undefined' && 'share' in navigator && (navigator.canShare ? navigator.canShare({ files: [file] }) : true)) {
+  if (Capacitor.isNativePlatform()) {
+    // iOS/Android: escribimos PNG al cache + compartimos vía native share sheet
+    const base64 = await blobToBase64(blob);
+    const result = await Filesystem.writeFile({
+      path: filename,
+      data: base64,
+      directory: Directory.Cache,
+      recursive: true,
+    });
+    try {
+      await Share.share({
+        title: 'Mi semana en Husu Habits',
+        text: 'Resumen de la semana',
+        url: result.uri,
+        dialogTitle: 'Compartir mi semana',
+      });
+    } catch (e) {
+      if ((e as Error).message?.toLowerCase().includes('cancel')) return;
+      console.warn('Share failed, file saved at:', result.uri);
+    }
+    return;
+  }
+
+  // Web — primero intento Web Share API (con files), después fallback download
+  const file = new File([blob], filename, { type: 'image/png' });
+  if (
+    typeof navigator !== 'undefined' &&
+    'share' in navigator &&
+    (navigator.canShare ? navigator.canShare({ files: [file] }) : true)
+  ) {
     try {
       await navigator.share({ files: [file], title: 'Mi semana en Husu Habits' });
       return;
@@ -100,7 +146,7 @@ export async function shareRecap(recap: WeekRecap): Promise<void> {
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
-  a.download = file.name;
+  a.download = filename;
   a.click();
   URL.revokeObjectURL(url);
 }

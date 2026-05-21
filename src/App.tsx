@@ -14,6 +14,7 @@ import { Onboarding } from './components/Onboarding';
 import { MilestoneToast } from './components/MilestoneToast';
 import { SundayRecap } from './components/SundayRecap';
 import { isSunday } from './lib/recap';
+import { applyStatusBarTheme } from './lib/platform';
 
 function App() {
   const [tab, setTab] = useState<TabId>('registro');
@@ -22,6 +23,7 @@ function App() {
 
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', data.theme);
+    void applyStatusBarTheme(data.theme);
   }, [data.theme]);
 
   const { doneToday, totalToday } = useMemo(() => {

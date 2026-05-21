@@ -9,17 +9,20 @@ const config: CapacitorConfig = {
   },
   ios: {
     backgroundColor: '#2A2823',
-    contentInset: 'always',
+    contentInset: 'never',
     scrollEnabled: true,
+    limitsNavigationsToAppBoundDomains: false,
   },
   plugins: {
     StatusBar: {
       style: 'DARK',
       backgroundColor: '#2A2823',
+      overlaysWebView: false,
     },
     LocalNotifications: {
       smallIcon: 'ic_stat_icon_config_sample',
       iconColor: '#C97B5A',
+      sound: 'beep.wav',
     },
   },
 };
