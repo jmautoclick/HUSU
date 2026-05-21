@@ -44,6 +44,9 @@ keystore.properties
 *.aab
 *.apk
 
+# Symlink temporal generado por scripts/prep-ios-for-eas.mjs
+ios/App.xcodeproj
+
 # iOS build artifacts
 ios/App/Pods/
 ios/App/App.xcworkspace/xcuserdata/
