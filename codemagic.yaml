@@ -1,0 +1,149 @@
+workflows:
+  ios-workflow:
+    name: Husu Habits iOS
+    instance_type: mac_mini_m2
+    max_build_duration: 60
+    environment:
+      vars:
+        XCODE_WORKSPACE: "ios/App/App.xcworkspace"
+        XCODE_SCHEME: "App"
+        BUNDLE_ID: "com.husu.habits"
+        APP_STORE_APPLE_ID: 1234567890   # reemplazar con el ID real de App Store Connect
+      node: 22
+      xcode: latest
+      cocoapods: default
+    integrations:
+      app_store_connect: husu-habits-key  # nombre del integration que crees en Codemagic
+    triggering:
+      events:
+        - push
+      branch_patterns:
+        - pattern: main
+          include: true
+    scripts:
+      - name: Install npm dependencies
+        script: |
+          npm ci
+      - name: Build web assets
+        script: |
+          npm run build
+      - name: Capacitor sync iOS
+        script: |
+          npx cap sync ios
+      - name: Install CocoaPods dependencies
+        script: |
+          cd ios/App && pod install
+      - name: Set up code signing
+        script: |
+          keychain initialize
+          app-store-connect fetch-signing-files "$BUNDLE_ID" \
+            --type IOS_APP_STORE \
+            --create
+          keychain add-certificates
+          xcode-project use-profiles
+      - name: Increment build number
+        script: |
+          cd $CM_BUILD_DIR/ios/App
+          LATEST_BUILD=$(app-store-connect get-latest-app-store-build-number "$APP_STORE_APPLE_ID" || echo 0)
+          agvtool new-version -all $(($LATEST_BUILD + 1))
+      - name: Build .ipa
+        script: |
+          xcode-project build-ipa \
+            --workspace "$CM_BUILD_DIR/$XCODE_WORKSPACE" \
+            --scheme "$XCODE_SCHEME"
+    artifacts:
+      - build/ios/ipa/*.ipa
+      - /tmp/xcodebuild_logs/*.log
+      - $HOME/Library/Developer/Xcode/DerivedData/**/Build/**/*.app
+      - $HOME/Library/Developer/Xcode/DerivedData/**/Build/**/*.dSYM
+    publishing:
+      email:
+        recipients:
+          - juanmavives@gmail.com
+        notify:
+          success: true
+          failure: true
+      app_store_connect:
+        auth: integration
+        submit_to_testflight: true
+        beta_groups:
+          - "Internal Testers"
+
+  ios-debug-workflow:
+    name: Husu Habits iOS (debug, sin firma)
+    instance_type: mac_mini_m2
+    max_build_duration: 60
+    environment:
+      node: 22
+      xcode: latest
+      cocoapods: default
+    scripts:
+      - name: Install npm dependencies
+        script: npm ci
+      - name: Build web assets
+        script: npm run build
+      - name: Capacitor sync iOS
+        script: npx cap sync ios
+      - name: Install pods
+        script: cd ios/App && pod install
+      - name: Build unsigned .app (simulator)
+        script: |
+          xcodebuild build \
+            -workspace ios/App/App.xcworkspace \
+            -scheme App \
+            -configuration Debug \
+            -sdk iphonesimulator \
+            -destination 'generic/platform=iOS Simulator' \
+            CODE_SIGN_IDENTITY="" \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGNING_ALLOWED=NO
+    artifacts:
+      - $HOME/Library/Developer/Xcode/DerivedData/**/Build/Products/Debug-iphonesimulator/*.app
+    publishing:
+      email:
+        recipients:
+          - juanmavives@gmail.com
+
+  android-workflow:
+    name: Husu Habits Android
+    instance_type: linux_x2
+    max_build_duration: 60
+    environment:
+      vars:
+        PACKAGE_NAME: "com.husu.habits"
+      android_signing:
+        - husu-habits-keystore   # nombre del keystore que cargues en Codemagic
+      node: 22
+      java: 21
+    triggering:
+      events:
+        - push
+      branch_patterns:
+        - pattern: main
+          include: true
+    scripts:
+      - name: Install npm deps
+        script: npm ci
+      - name: Build web assets
+        script: npm run build
+      - name: Capacitor sync Android
+        script: npx cap sync android
+      - name: Build Android AAB
+        script: |
+          cd android
+          chmod +x gradlew
+          ./gradlew bundleRelease
+    artifacts:
+      - android/app/build/outputs/**/*.aab
+      - android/app/build/outputs/**/*.apk
+    publishing:
+      email:
+        recipients:
+          - juanmavives@gmail.com
+        notify:
+          success: true
+          failure: true
+      google_play:
+        credentials: $GCLOUD_SERVICE_ACCOUNT_CREDENTIALS
+        track: internal
+        submit_as_draft: true

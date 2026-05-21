@@ -296,43 +296,49 @@ function TemplatesModal({ existing, onCancel, onAdd }: { existing: Set<string>; 
 
   return (
     <div className="modal-backdrop" onClick={onCancel}>
-      <div className="modal scroll" onClick={e => e.stopPropagation()}>
-        <h2>Plantillas sugeridas</h2>
-        <p style={{ fontSize: 12, color: 'var(--text-dim)', margin: '0 0 12px' }}>{TEMPLATES.length} hábitos respaldados por research. Tocá los que querés sumar.</p>
-        <div className="category-tabs">
-          <button className={activeCategory === 'all' ? 'on' : ''} onClick={() => setActiveCategory('all')}>Todos</button>
-          {CATEGORIES.map(c => (
-            <button key={c} className={activeCategory === c ? 'on' : ''} onClick={() => setActiveCategory(c)}>{CATEGORY_EMOJI[c] ?? ''} {c}</button>
-          ))}
+      <div className="modal modal-templates" onClick={e => e.stopPropagation()}>
+        <div className="modal-header">
+          <h2>Plantillas sugeridas</h2>
+          <p style={{ fontSize: 12, color: 'var(--text-dim)', margin: '0 0 12px' }}>{TEMPLATES.length} hábitos respaldados por research. Deslizá las categorías →</p>
+          <div className="category-tabs-wrap">
+            <div className="category-tabs">
+              <button className={activeCategory === 'all' ? 'on' : ''} onClick={() => setActiveCategory('all')}>Todos</button>
+              {CATEGORIES.map(c => (
+                <button key={c} className={activeCategory === c ? 'on' : ''} onClick={() => setActiveCategory(c)}>{CATEGORY_EMOJI[c] ?? ''} {c}</button>
+              ))}
+            </div>
+          </div>
         </div>
-        <div className="template-list">
-          {list.map(t => {
-            const already = existing.has(t.name);
-            const isSel = selected.has(t.name);
-            const isRec = TOP_RECOMMENDED_NAMES.has(t.name);
-            return (
-              <button
-                key={t.name}
-                disabled={already}
-                className={`template-row ${isSel ? 'selected' : ''} ${already ? 'dim' : ''}`}
-                onClick={() => setSelected(prev => { const s = new Set(prev); s.has(t.name) ? s.delete(t.name) : s.add(t.name); return s; })}
-              >
-                <span className="template-emoji">{t.emoji}</span>
-                <div className="template-info">
-                  <div className="template-name">
-                    {t.name}
-                    {isRec && <span className="badge-tag rec">⭐</span>}
-                    {t.keystone && <span className="badge-tag keystone">🪨</span>}
-                    {already && <span style={{ fontSize: 10, color: 'var(--text-faint)' }}>(ya tenés)</span>}
+        <div className="modal-body">
+          <div className="template-list">
+            {list.map(t => {
+              const already = existing.has(t.name);
+              const isSel = selected.has(t.name);
+              const isRec = TOP_RECOMMENDED_NAMES.has(t.name);
+              return (
+                <button
+                  key={t.name}
+                  disabled={already}
+                  className={`template-row ${isSel ? 'selected' : ''} ${already ? 'dim' : ''}`}
+                  onClick={() => setSelected(prev => { const s = new Set(prev); s.has(t.name) ? s.delete(t.name) : s.add(t.name); return s; })}
+                >
+                  <span className="template-emoji">{t.emoji}</span>
+                  <div className="template-info">
+                    <div className="template-name">
+                      {t.name}
+                      {isRec && <span className="badge-tag rec">⭐</span>}
+                      {t.keystone && <span className="badge-tag keystone">🪨</span>}
+                      {already && <span style={{ fontSize: 10, color: 'var(--text-faint)' }}>(ya tenés)</span>}
+                    </div>
+                    <div className="template-sub">{describeFrequency(t.frequency)} · {t.description}</div>
                   </div>
-                  <div className="template-sub">{describeFrequency(t.frequency)} · {t.description}</div>
-                </div>
-                <span className={`template-check ${isSel ? 'on' : ''}`}>{isSel ? '✓' : ''}</span>
-              </button>
-            );
-          })}
+                  <span className={`template-check ${isSel ? 'on' : ''}`}>{isSel ? '✓' : ''}</span>
+                </button>
+              );
+            })}
+          </div>
         </div>
-        <div className="modal-actions">
+        <div className="modal-footer">
           <button className="btn btn-secondary" onClick={onCancel}>Cancelar</button>
           <button
             className="btn btn-primary"

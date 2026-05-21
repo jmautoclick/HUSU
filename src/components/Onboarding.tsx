@@ -100,32 +100,37 @@ export function Onboarding({ onComplete, onSkip }: Props) {
 
   return (
     <div className="onboarding-overlay">
-      <div className="onboarding-content scroll">
-        <h2 className="onboarding-title-sm">Elegí tus primeros hábitos</h2>
-        <p className="onboarding-sub-sm">
-          Empezá con pocos. La constancia gana a la cantidad — recomendamos hasta {MAX_RECOMMENDED}.
-        </p>
+      <div className="onboarding-content modal-templates">
+        <div className="modal-header" style={{ background: 'var(--bg)' }}>
+          <h2 className="onboarding-title-sm">Elegí tus primeros hábitos</h2>
+          <p className="onboarding-sub-sm">
+            Empezá con pocos. La constancia gana a la cantidad — recomendamos hasta {MAX_RECOMMENDED}. Deslizá las categorías →
+          </p>
 
-        <div className="category-tabs">
-          <button
-            className={activeCategory === 'all' ? 'on' : ''}
-            onClick={() => setActiveCategory('all')}
-          >
-            ⭐ Para vos
-          </button>
-          {visibleCategories.map(c => (
-            <button
-              key={c}
-              className={activeCategory === c ? 'on' : ''}
-              onClick={() => setActiveCategory(c)}
-            >
-              {CATEGORY_EMOJI[c] ?? ''} {c}
-            </button>
-          ))}
+          <div className="category-tabs-wrap">
+            <div className="category-tabs">
+              <button
+                className={activeCategory === 'all' ? 'on' : ''}
+                onClick={() => setActiveCategory('all')}
+              >
+                ⭐ Para vos
+              </button>
+              {visibleCategories.map(c => (
+                <button
+                  key={c}
+                  className={activeCategory === c ? 'on' : ''}
+                  onClick={() => setActiveCategory(c)}
+                >
+                  {CATEGORY_EMOJI[c] ?? ''} {c}
+                </button>
+              ))}
+            </div>
+          </div>
         </div>
 
-        <div className="template-list">
-          {filteredTemplates.map(t => {
+        <div className="modal-body">
+          <div className="template-list">
+            {filteredTemplates.map(t => {
             const isSelected = selected.has(t.name);
             const isRecommended = TOP_RECOMMENDED_NAMES.has(t.name);
             return (
@@ -156,15 +161,16 @@ export function Onboarding({ onComplete, onSkip }: Props) {
               </button>
             );
           })}
+          </div>
+
+          {tooMany && (
+            <div className="warning-banner">
+              Elegiste {selected.size}. Se aprende mejor con pocos — podés sumar más después.
+            </div>
+          )}
         </div>
 
-        {tooMany && (
-          <div className="warning-banner">
-            Elegiste {selected.size}. Se aprende mejor con pocos — podés sumar más después.
-          </div>
-        )}
-
-        <div className="onboarding-footer">
+        <div className="modal-footer" style={{ background: 'var(--bg)' }}>
           <button className="btn btn-secondary" onClick={onSkip}>Empezar de cero</button>
           <button
             className="btn btn-primary"

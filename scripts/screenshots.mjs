@@ -124,5 +124,14 @@ await page.locator('.segmented button:has-text("Año")').click();
 await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
 await shot('11-achievements');
 
+// 12 Templates modal sticky footer
+await reset('dark', 'seed');
+await page.waitForTimeout(2000);
+await page.locator('.tab').nth(3).click();
+await page.locator('.fab-button:has-text("plantillas")').click();
+await page.waitForTimeout(500);
+await page.evaluate(() => { const m = document.querySelector('.modal-body'); if (m) m.scrollTop = 400; });
+await shot('12-templates-modal-sticky');
+
 await browser.close();
 console.log('done');

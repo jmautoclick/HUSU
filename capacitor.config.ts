@@ -5,12 +5,21 @@ const config: CapacitorConfig = {
   appName: 'Husu Habits',
   webDir: 'dist',
   android: {
-    backgroundColor: '#0b0a14',
+    backgroundColor: '#2A2823',
+  },
+  ios: {
+    backgroundColor: '#2A2823',
+    contentInset: 'always',
+    scrollEnabled: true,
   },
   plugins: {
     StatusBar: {
       style: 'DARK',
-      backgroundColor: '#0b0a14',
+      backgroundColor: '#2A2823',
+    },
+    LocalNotifications: {
+      smallIcon: 'ic_stat_icon_config_sample',
+      iconColor: '#C97B5A',
     },
   },
 };
