@@ -32,7 +32,9 @@ export function detectPatterns(data: AppData, today: Date = new Date()): Pattern
   }
 
   for (const h of data.habits) {
-    const w = streakWindow(h, data, 30);
+    // 15 días vs 15 anteriores (el texto del insight dice "15"); antes
+    // pasaba 30 → el mensaje mentía sobre la ventana comparada.
+    const w = streakWindow(h, data, 15);
     if (w.before !== null && w.after !== null && w.after - w.before > 0.2) {
       insights.push({
         text: `"${h.name}" mejoró: ${(w.before * 100).toFixed(0)}% → ${(w.after * 100).toFixed(0)}% en los últimos 15 vs 15 días anteriores.`,

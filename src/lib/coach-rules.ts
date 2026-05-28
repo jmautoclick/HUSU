@@ -65,6 +65,13 @@ function normalize(s: string): string {
     .trim();
 }
 
+// Escapa metacaracteres regex. CRÍTICO: los nombres de hábito son input del
+// usuario y se usan en new RegExp(). Sin esto, un hábito llamado "Rutina(am"
+// o "Leer [x" o "foco++" tira SyntaxError y CRASHEA el Coach entero.
+function escapeRegex(s: string): string {
+  return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
 interface IntentPattern {
   intent: Intent;
   keywords: string[];     // si alguno está, suma a score
@@ -149,9 +156,9 @@ function classify(question: string, habits: Habit[]): Classification {
     if (q.includes(hName)) { detectedHabit = h; break; }
     const words = hName.split(/\s+/).filter(w => w.length > 3 && !['para', 'estar', 'estoy', 'minutos', 'minuto', 'dias', 'esta', 'pre-sueño', 'sueño'].includes(w));
     for (const w of words) {
-      if (new RegExp(`\\b${w}\\b`).test(q)) { detectedHabit = h; break; }
+      if (new RegExp(`\\b${escapeRegex(w)}\\b`).test(q)) { detectedHabit = h; break; }
       // prefix match (raíz verbal/sustantiva)
-      if (w.length >= 5 && new RegExp(`\\b${w.slice(0, 5)}\\w*\\b`).test(q)) { detectedHabit = h; break; }
+      if (w.length >= 5 && new RegExp(`\\b${escapeRegex(w.slice(0, 5))}\\w*\\b`).test(q)) { detectedHabit = h; break; }
     }
     if (detectedHabit) break;
   }
@@ -824,7 +831,7 @@ function compareHabits(data: AppData, q: string): string {
   for (const h of data.habits) {
     const hn = normalize(h.name);
     const firstWord = hn.split(/\s+/).filter(w => w.length > 3)[0];
-    if (qn.includes(hn) || (firstWord && new RegExp(`\\b${firstWord}\\b`).test(qn))) {
+    if (qn.includes(hn) || (firstWord && new RegExp(`\\b${escapeRegex(firstWord)}\\b`).test(qn))) {
       mentioned.push(h);
     }
   }

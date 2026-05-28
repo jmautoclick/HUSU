@@ -64,6 +64,27 @@ console.log('\n=== currentStreak ===');
   check('freeze en -2 bridgea (4 hechos, no rompe)', currentStreak(h, comp, TODAY, fz), 4);
 }
 
+console.log('\n=== currentStreak HÁBITOS WEEKLY (path-dependence sospechada) ===');
+{
+  // weekly 2x/sem. Done consistente Lun+Mar cada semana por 4 semanas.
+  // Como isExpectedToday(weekly) depende de cuántos hiciste ESA semana,
+  // caminar hacia atrás da resultados raros. Observamos el número.
+  const h = mkHabit({ frequency: { type: 'weekly', timesPerWeek: 2 }, createdAt: dateKey(daysAgo(35,TODAY)) });
+  const dates: Date[] = [];
+  // semanas: TODAY es jueves 28-may. Lun/Mar de las últimas 4 semanas:
+  for (const monOffset of [3, 10, 17, 24]) { // lunes hacia atrás aprox
+    dates.push(daysAgo(monOffset, TODAY));
+    dates.push(daysAgo(monOffset-1, TODAY));
+  }
+  const comp = doneOn(h.id, dates);
+  const s = currentStreak(h, comp, TODAY);
+  console.log(`  [obs] weekly 2x consistente 4 sem → currentStreak = ${s} (días)`);
+  // weekly 2x done solo semana 1, nada hace 2 semanas → NO debe inflar
+  const comp2 = doneOn(h.id, [daysAgo(24,TODAY), daysAgo(23,TODAY)]);
+  const s2 = currentStreak(h, comp2, TODAY);
+  check('weekly: hecho solo hace 3 sem, idle desde → racha 0 (no infla)', s2, 0);
+}
+
 console.log('\n=== bestStreak ===');
 {
   const h = mkHabit({ createdAt: dateKey(daysAgo(10,TODAY)) });
