@@ -8,7 +8,7 @@ import { requestPermission } from '../lib/notifications';
 
 interface Props {
   data: AppData;
-  onAdd: (name: string, colorIdx: number, goal: number, opts?: { emoji?: string; frequency?: Frequency; intention?: string; timeSlot?: TimeSlot }) => void;
+  onAdd: (name: string, colorIdx: number, goal: number, opts?: { emoji?: string; frequency?: Frequency; intention?: string; timeSlot?: TimeSlot; reminder?: Reminder }) => void;
   onAddMany: (items: { name: string; colorIdx?: number; monthlyGoal: number; emoji?: string; frequency?: Frequency }[]) => void;
   onUpdate: (id: string, patch: Partial<Habit>) => void;
   onSetReminder: (id: string, reminder: Reminder | undefined) => void;
@@ -93,12 +93,11 @@ export function Habitos({ data, onAdd, onAddMany, onUpdate, onSetReminder, onDel
               frequency: payload.frequency,
               intention: payload.intention || undefined,
               timeSlot: payload.timeSlot,
+              // Pasar el reminder acá para que se setee atómico con el id real
+              // del hábito nuevo (fix del bug de closure stale + setTimeout).
+              reminder: reminder?.enabled ? reminder : undefined,
             });
             setCreating(false);
-            if (reminder?.enabled) setTimeout(() => {
-              const last = data.habits[data.habits.length - 1];
-              if (last) onSetReminder(last.id, reminder);
-            }, 50);
           }}
           onRequestNotificationPerm={requestPermission}
         />
@@ -320,7 +319,7 @@ function TemplatesModal({ existing, onCancel, onAdd }: { existing: Set<string>; 
                   key={t.name}
                   disabled={already}
                   className={`template-row ${isSel ? 'selected' : ''} ${already ? 'dim' : ''}`}
-                  onClick={() => setSelected(prev => { const s = new Set(prev); s.has(t.name) ? s.delete(t.name) : s.add(t.name); return s; })}
+                  onClick={() => setSelected(prev => { const s = new Set(prev); if (s.has(t.name)) s.delete(t.name); else s.add(t.name); return s; })}
                 >
                   <span className="template-emoji">{t.emoji}</span>
                   <div className="template-info">

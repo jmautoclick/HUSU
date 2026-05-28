@@ -76,7 +76,7 @@ export function useHabitos() {
     return { ...next, achievements: [...next.achievements, ...asUnlocks(unlocked)] };
   }, [enqueueToast]);
 
-  const addHabit = useCallback((name: string, colorIdx: number, monthlyGoal: number, opts?: { emoji?: string; frequency?: Frequency; intention?: string; timeSlot?: TimeSlot }) => {
+  const addHabit = useCallback((name: string, colorIdx: number, monthlyGoal: number, opts?: { emoji?: string; frequency?: Frequency; intention?: string; timeSlot?: TimeSlot; reminder?: Reminder }) => {
     setData(d => {
       const h: Habit = {
         id: uid(),
@@ -88,6 +88,12 @@ export function useHabitos() {
         frequency: opts?.frequency ?? { type: 'daily' },
         intention: opts?.intention,
         timeSlot: opts?.timeSlot,
+        // Set el reminder atómicamente acá. Antes Habitos.tsx intentaba
+        // setearlo con un setTimeout que leía data.habits[length-1] de un
+        // closure stale → adjuntaba el reminder al hábito equivocado (o lo
+        // perdía si era el primero). El effect de sync (data.habits) agarra
+        // este reminder y agenda la notificación.
+        reminder: opts?.reminder,
       };
       return checkAchievements({ ...d, habits: [...d.habits, h] });
     });

@@ -20,7 +20,7 @@ export async function ensureActionTypes() {
       ],
     });
     actionsRegistered = true;
-  } catch {}
+  } catch { /* best-effort: plugin no disponible o sin permiso, silencioso */ }
 }
 
 export async function listenForActions(onCheck: (habitId: string) => void) {
@@ -29,7 +29,7 @@ export async function listenForActions(onCheck: (habitId: string) => void) {
       const habitId = event.notification.extra?.habitId;
       if (event.actionId === 'check' && habitId) onCheck(habitId);
     });
-  } catch {}
+  } catch { /* best-effort: plugin no disponible o sin permiso, silencioso */ }
 }
 
 export async function requestPermission(): Promise<boolean> {
@@ -104,7 +104,7 @@ export async function cancelForHabit(habit: Habit) {
       for (const wd of habit.frequency.weekdays) ids.push(notificationIdFor(habit.id, wd));
     }
     await LocalNotifications.cancel({ notifications: ids.map(id => ({ id })) });
-  } catch {}
+  } catch { /* best-effort: plugin no disponible o sin permiso, silencioso */ }
 }
 
 export async function syncAll(habits: Habit[]) {

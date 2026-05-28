@@ -49,7 +49,7 @@ export async function renderRecapCard(recap: WeekRecap): Promise<Blob> {
   ctx.textAlign = 'center';
   ctx.fillText('de cumplimiento', W / 2, 600);
 
-  let y = 700;
+  const y = 700;
   ctx.textAlign = 'left';
   ctx.font = '600 28px sans-serif';
 

@@ -33,6 +33,10 @@ export function saveData(data: AppData): void {
   localStorage.setItem(KEY, JSON.stringify(data));
 }
 
+/* eslint-disable @typescript-eslint/no-explicit-any --
+   migrate() y migrateV1ToV2() procesan JSON deserializado de localStorage
+   con forma desconocida/legacy. El `any` es intencional acá; la salida
+   queda tipada como AppData tras la migración. */
 function migrate(raw: any): AppData {
   if (!raw || typeof raw !== 'object') return { ...DEFAULT_DATA };
   const version = raw.schemaVersion ?? 1;

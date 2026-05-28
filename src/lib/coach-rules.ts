@@ -1045,7 +1045,7 @@ export function followUpSuggestions(intent: Intent, _data: AppData): string[] {
     case 'daily_brief':
       return ['¿Qué tengo hoy?', 'Dame un consejo', 'Motivame'];
     case 'motivate_me':
-    case 'demotivated':
+      // 'demotivated' ya se maneja arriba (su propio case); no duplicar acá.
       return ['Dame un tip de recuperación', '¿Quién soy en hábitos?', '¿Cuál es mi mejor racha?'];
     default:
       return ['¿Cómo voy este mes?', 'Dame un consejo', '¿Qué día fallo más?'];
@@ -1082,11 +1082,7 @@ export function getCoachResult(question: string, data: AppData, recentIntents: I
     text = `Te leo cansado, así que primero te lo digo directo: está OK no estar al 100%.\n\n${text}`;
   }
 
-  // Filtrar follow-ups que repitan los últimos 2 intents
-  let followUps = followUpSuggestions(cls.intent, data);
-  if (recentIntents.length > 0) {
-    // No relevante filtrar followUps por intent porque son textos. Skip.
-  }
+  const followUps = followUpSuggestions(cls.intent, data);
 
   return { text, followUps, intent: cls.intent };
 }
