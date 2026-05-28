@@ -4,7 +4,7 @@
 
 import type { AppData, Habit } from './types';
 import { detectPatterns } from './patterns';
-import { bestStreak, currentStreak, streakDisplay } from './streaks';
+import { bestStreak, currentStreak, streakDisplay, bestStreakDisplay } from './streaks';
 import { lastWeekRecap } from './recap';
 import { isExpectedToday, expectedDaysInMonth } from './frequency';
 import { dateKey, parseDateKey } from './dates';
@@ -481,8 +481,9 @@ function habitBreakdown(data: AppData, h?: Habit): string {
 }
 
 function specificHabitResponse(data: AppData, h: Habit): string {
-  const cur = currentStreak(h, data.completions, new Date(), data.freezesUsed);
-  const best = bestStreak(h, data.completions);
+  // Unidad correcta: días (daily/specific) o semanas (weekly).
+  const sd = streakDisplay(h, data.completions, new Date(), data.freezesUsed);
+  const bd = bestStreakDisplay(h, data.completions, new Date());
   const today = new Date();
   let exp = 0, done = 0;
   const start = new Date(today.getFullYear(), today.getMonth(), 1);
@@ -492,7 +493,7 @@ function specificHabitResponse(data: AppData, h: Habit): string {
     if (data.completions[dateKey(d)]?.[h.id]?.done) done++;
   }
   const rate = exp > 0 ? Math.round((done / exp) * 100) : 0;
-  return `"${h.name}": ${done}/${exp} este mes (${rate}%). Racha actual: ${cur} días. Mejor racha histórica: ${best}.`;
+  return `"${h.name}": ${done}/${exp} este mes (${rate}%). Racha actual: ${sd.value} ${sd.unit}. Mejor histórica: ${bd.value} ${bd.unit}.`;
 }
 
 // ============ Tips database (50+) ============
