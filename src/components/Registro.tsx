@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react';
 import type { AppData, Habit, TimeSlot } from '../lib/types';
 import { dateKey, formatDayShort, isSameDay, lastNDays, todayKey } from '../lib/dates';
 import { colorFor } from '../lib/colors';
-import { currentStreak } from '../lib/streaks';
+import { streakDisplay } from '../lib/streaks';
 import { isExpectedToday } from '../lib/frequency';
 import { NoteEditor } from './NoteEditor';
 
@@ -80,7 +80,9 @@ export function Registro({ data, onToggle, onSetNote, onJumpToHabits }: Props) {
             const checked = !!entry?.done;
             const hasNote = !!entry?.note;
             const expected = isExpectedToday(h, selectedDate, data.completions);
-            const streak = selected === todayKey() ? currentStreak(h, data.completions, today, data.freezesUsed) : 0;
+            // streakDisplay devuelve días para daily/specific y SEMANAS para weekly.
+            const sd = selected === todayKey() ? streakDisplay(h, data.completions, today, data.freezesUsed) : { value: 0, unit: 'días' as const };
+            const streak = sd.value;
             const isFrozen = !!data.freezesUsed[selected]?.[h.id];
 
             return (
@@ -101,7 +103,7 @@ export function Registro({ data, onToggle, onSetNote, onJumpToHabits }: Props) {
               <div className="habit-sub">
                 {streak > 0 && (
                   <span className="streak-badge" title={isFrozen ? 'Escudo activo' : 'Racha actual'}>
-                    {isFrozen ? '🛡️' : '🔥'} {streak}
+                    {isFrozen ? '🛡️' : '🔥'} {streak}{sd.unit === 'sem' ? ' sem' : ''}
                   </span>
                 )}
                 {!expected && <span className="freq-tag">no toca hoy</span>}

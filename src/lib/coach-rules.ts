@@ -4,7 +4,7 @@
 
 import type { AppData, Habit } from './types';
 import { detectPatterns } from './patterns';
-import { bestStreak, currentStreak } from './streaks';
+import { bestStreak, currentStreak, streakDisplay } from './streaks';
 import { lastWeekRecap } from './recap';
 import { isExpectedToday, expectedDaysInMonth } from './frequency';
 import { dateKey, parseDateKey } from './dates';
@@ -417,7 +417,9 @@ function bestHabitResponse(data: AppData): string {
   })).sort((a, b) => b.streak - a.streak || b.best - a.best);
   const top = list[0];
   if (!top || top.streak === 0) return 'Ninguno con racha activa ahora. Lo importante es volver hoy, no ayer.';
-  return `"${top.h.name}" va al frente: ${top.streak} días de racha actual (mejor histórica: ${top.best}). Identidad construida, no esfuerzo. Cuidalo.`;
+  // streakDisplay: días para daily/specific, semanas para weekly.
+  const sd = streakDisplay(top.h, data.completions, new Date(), data.freezesUsed);
+  return `"${top.h.name}" va al frente: ${sd.value} ${sd.unit} de racha actual. Identidad construida, no esfuerzo. Cuidalo.`;
 }
 
 function weakestHabitResponse(data: AppData): string {
@@ -444,12 +446,13 @@ function weakestHabitResponse(data: AppData): string {
 }
 
 function streakResponse(data: AppData): string {
+  // streakDisplay: días (daily/specific) o semanas (weekly), con la unidad correcta.
   const list = data.habits.map(h => ({
-    h, cur: currentStreak(h, data.completions, new Date(), data.freezesUsed),
-  })).filter(x => x.cur > 0).sort((a, b) => b.cur - a.cur);
+    h, sd: streakDisplay(h, data.completions, new Date(), data.freezesUsed),
+  })).filter(x => x.sd.value > 0).sort((a, b) => b.sd.value - a.sd.value);
   if (list.length === 0) return 'Sin rachas activas ahora. Marcá hoy uno y empezás de nuevo. Día 1 vale igual que día 100.';
-  if (list.length === 1) return `Tu única racha activa: ${list[0].cur} días en "${list[0].h.name}" 🔥`;
-  return `Rachas activas:\n${list.slice(0, 5).map(x => `• "${x.h.name}": ${x.cur} días`).join('\n')}`;
+  if (list.length === 1) return `Tu única racha activa: ${list[0].sd.value} ${list[0].sd.unit} en "${list[0].h.name}" 🔥`;
+  return `Rachas activas:\n${list.slice(0, 5).map(x => `• "${x.h.name}": ${x.sd.value} ${x.sd.unit}`).join('\n')}`;
 }
 
 function abandonedHabit(data: AppData): string {

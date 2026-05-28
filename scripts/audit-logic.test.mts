@@ -5,7 +5,7 @@
 // que la lógica de negocio (rachas, frecuencias, logros, fechas) da
 // resultados CORRECTOS, no solo que compila.
 
-import { currentStreak, bestStreak, autoApplyFreezes } from '../src/lib/streaks.ts';
+import { currentStreak, bestStreak, autoApplyFreezes, currentStreakWeeks, bestStreakWeeks } from '../src/lib/streaks.ts';
 import { isExpectedToday, countCompletionsThisWeek, expectedDaysInMonth } from '../src/lib/frequency.ts';
 import { evaluate } from '../src/lib/achievements.ts';
 import { dateKey, parseDateKey, monthDays, daysInMonth } from '../src/lib/dates.ts';
@@ -64,25 +64,40 @@ console.log('\n=== currentStreak ===');
   check('freeze en -2 bridgea (4 hechos, no rompe)', currentStreak(h, comp, TODAY, fz), 4);
 }
 
-console.log('\n=== currentStreak HÁBITOS WEEKLY (path-dependence sospechada) ===');
+console.log('\n=== currentStreakWeeks (racha weekly en semanas) ===');
 {
-  // weekly 2x/sem. Done consistente Lun+Mar cada semana por 4 semanas.
-  // Como isExpectedToday(weekly) depende de cuántos hiciste ESA semana,
-  // caminar hacia atrás da resultados raros. Observamos el número.
-  const h = mkHabit({ frequency: { type: 'weekly', timesPerWeek: 2 }, createdAt: dateKey(daysAgo(35,TODAY)) });
-  const dates: Date[] = [];
-  // semanas: TODAY es jueves 28-may. Lun/Mar de las últimas 4 semanas:
-  for (const monOffset of [3, 10, 17, 24]) { // lunes hacia atrás aprox
-    dates.push(daysAgo(monOffset, TODAY));
-    dates.push(daysAgo(monOffset-1, TODAY));
-  }
-  const comp = doneOn(h.id, dates);
-  const s = currentStreak(h, comp, TODAY);
-  console.log(`  [obs] weekly 2x consistente 4 sem → currentStreak = ${s} (días)`);
-  // weekly 2x done solo semana 1, nada hace 2 semanas → NO debe inflar
-  const comp2 = doneOn(h.id, [daysAgo(24,TODAY), daysAgo(23,TODAY)]);
-  const s2 = currentStreak(h, comp2, TODAY);
-  check('weekly: hecho solo hace 3 sem, idle desde → racha 0 (no infla)', s2, 0);
+  // TODAY = jue 28-may-2026. Semanas Dom-Sáb. Semana actual: 24..30 may.
+  const wk = mkHabit({ frequency: { type: 'weekly', timesPerWeek: 2 }, createdAt: '2026-04-20' });
+  // 2x en cada una de: esta sem (25,26), -1 (18,19), -2 (11,12), -3 (4,5) = 4 sem
+  const perfect4 = doneOn(wk.id, [
+    new Date(2026,4,25), new Date(2026,4,26),
+    new Date(2026,4,18), new Date(2026,4,19),
+    new Date(2026,4,11), new Date(2026,4,12),
+    new Date(2026,4,4),  new Date(2026,4,5),
+  ]);
+  check('weekly 2x perfecto 4 sem → 4 semanas', currentStreakWeeks(wk, perfect4, TODAY), 4);
+
+  // Semana en curso con solo 1 hecho (aún no llega a 2) + 3 sem previas OK → 3
+  const inProgress = doneOn(wk.id, [
+    new Date(2026,4,25),
+    new Date(2026,4,18), new Date(2026,4,19),
+    new Date(2026,4,11), new Date(2026,4,12),
+    new Date(2026,4,4),  new Date(2026,4,5),
+  ]);
+  check('weekly: semana en curso 1/2 no rompe → 3 sem previas', currentStreakWeeks(wk, inProgress, TODAY), 3);
+
+  // Semana -2 perdida (0) → racha corta a 2 (esta + -1)
+  const missed = doneOn(wk.id, [
+    new Date(2026,4,25), new Date(2026,4,26),
+    new Date(2026,4,18), new Date(2026,4,19),
+    // -2 vacía
+    new Date(2026,4,4),  new Date(2026,4,5),
+  ]);
+  check('weekly: semana -2 perdida → racha 2', currentStreakWeeks(wk, missed, TODAY), 2);
+
+  // bestStreakWeeks: 4 perfectas → mejor 4; con -2 perdida → mejor run 2
+  check('bestStreakWeeks 4 perfectas → 4', bestStreakWeeks(wk, perfect4, TODAY), 4);
+  check('bestStreakWeeks con -2 perdida → 2', bestStreakWeeks(wk, missed, TODAY), 2);
 }
 
 console.log('\n=== bestStreak ===');

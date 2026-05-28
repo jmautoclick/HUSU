@@ -57,6 +57,90 @@ export function bestStreak(habit: Habit, completions: Completions, today: Date =
   return best;
 }
 
+function startOfWeekLocal(d: Date): Date {
+  const out = stripTime(d);
+  out.setDate(out.getDate() - out.getDay()); // domingo
+  return out;
+}
+
+// Racha en SEMANAS para hábitos weekly: semanas consecutivas (Dom-Sáb)
+// cumpliendo timesPerWeek. La semana EN CURSO no rompe si todavía no llegó
+// a la meta (hay tiempo). Para daily/specific la racha es en días
+// (currentStreak). Sin esto, un hábito 2x/sem perfecto 4 semanas mostraba
+// racha "1" (la racha por-día no aplica a hábitos semanales).
+export function currentStreakWeeks(habit: Habit, completions: Completions, today: Date = new Date()): number {
+  if (habit.frequency.type !== 'weekly') return 0;
+  const goal = habit.frequency.timesPerWeek;
+  const created = stripTime(new Date(habit.createdAt));
+  const thisWeekStart = startOfWeekLocal(today);
+  let weeks = 0;
+  const cursor = new Date(thisWeekStart);
+  let safety = 600;
+  while (safety-- > 0) {
+    const weekEnd = new Date(cursor); weekEnd.setDate(cursor.getDate() + 6);
+    if (weekEnd < created) break; // semana entera previa a la creación del hábito
+    let done = 0;
+    for (let i = 0; i < 7; i++) {
+      const d = new Date(cursor); d.setDate(cursor.getDate() + i);
+      if (d > today) break;
+      if (completions[dateKey(d)]?.[habit.id]?.done) done++;
+    }
+    const isCurrentWeek = cursor.getTime() === thisWeekStart.getTime();
+    if (done >= goal) weeks++;
+    else if (isCurrentWeek) { /* semana en curso: no rompe ni suma */ }
+    else break;
+    cursor.setDate(cursor.getDate() - 7);
+  }
+  return weeks;
+}
+
+// Mejor racha histórica en SEMANAS para hábitos weekly (el run más largo de
+// semanas consecutivas cumpliendo la meta). Para daily/specific usar bestStreak.
+export function bestStreakWeeks(habit: Habit, completions: Completions, today: Date = new Date()): number {
+  if (habit.frequency.type !== 'weekly') return 0;
+  const goal = habit.frequency.timesPerWeek;
+  const thisWeekStart = startOfWeekLocal(today);
+  const cursor = startOfWeekLocal(stripTime(new Date(habit.createdAt)));
+  let best = 0, run = 0, safety = 600;
+  while (cursor <= thisWeekStart && safety-- > 0) {
+    let done = 0;
+    for (let i = 0; i < 7; i++) {
+      const d = new Date(cursor); d.setDate(cursor.getDate() + i);
+      if (d > today) break;
+      if (completions[dateKey(d)]?.[habit.id]?.done) done++;
+    }
+    const isCurrentWeek = cursor.getTime() === thisWeekStart.getTime();
+    if (done >= goal) { run++; if (run > best) best = run; }
+    else if (!isCurrentWeek) run = 0; // semana en curso incompleta no corta el "best"
+    cursor.setDate(cursor.getDate() + 7);
+  }
+  return best;
+}
+
+// Display unificado: devuelve valor + unidad correcta según el tipo de hábito.
+// daily/specific → días; weekly → semanas. Usar para badges y respuestas del Coach.
+export function streakDisplay(
+  habit: Habit, completions: Completions, today: Date = new Date(),
+  freezesUsed: Record<string, Record<string, true>> = {},
+): { value: number; unit: 'día' | 'días' | 'sem' } {
+  if (habit.frequency.type === 'weekly') {
+    return { value: currentStreakWeeks(habit, completions, today), unit: 'sem' };
+  }
+  const v = currentStreak(habit, completions, today, freezesUsed);
+  return { value: v, unit: v === 1 ? 'día' : 'días' };
+}
+
+// Idem para la MEJOR racha histórica (semanas si weekly, días si no).
+export function bestStreakDisplay(
+  habit: Habit, completions: Completions, today: Date = new Date(),
+): { value: number; unit: 'día' | 'días' | 'sem' } {
+  if (habit.frequency.type === 'weekly') {
+    return { value: bestStreakWeeks(habit, completions, today), unit: 'sem' };
+  }
+  const v = bestStreak(habit, completions, today);
+  return { value: v, unit: v === 1 ? 'día' : 'días' };
+}
+
 export function nextMilestone(streak: number): number | null {
   for (const m of MILESTONES) if (streak < m) return m;
   return null;

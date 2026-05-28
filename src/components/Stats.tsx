@@ -2,7 +2,7 @@ import { useState } from 'react';
 import type { AppData, Habit } from '../lib/types';
 import { dateKey, formatMonthYear, isSameDay, monthDays, parseDateKey, startOfMonth } from '../lib/dates';
 import { colorFor } from '../lib/colors';
-import { bestStreak, currentStreak } from '../lib/streaks';
+import { streakDisplay, bestStreakDisplay } from '../lib/streaks';
 import { Heatmap } from './Heatmap';
 import { AchievementsPanel } from './AchievementsPanel';
 
@@ -147,8 +147,10 @@ function MonthCalendar({ habit, data, today }: { habit: Habit; data: AppData; to
 
 function StreakCard({ habit, data, today }: { habit: Habit; data: AppData; today: Date }) {
   const c = colorFor(habit.colorIdx);
-  const cur = currentStreak(habit, data.completions, today, data.freezesUsed);
-  const best = bestStreak(habit, data.completions, today);
+  // streakDisplay/bestStreakDisplay: días para daily/specific, semanas para weekly.
+  const cur = streakDisplay(habit, data.completions, today, data.freezesUsed);
+  const best = bestStreakDisplay(habit, data.completions, today);
+  const unitLabel = (u: string) => (u === 'sem' ? 'semanas' : 'días');
   return (
     <div className="card streak-card">
       <div style={{ color: c.bg, fontWeight: 700, fontSize: 13, display: 'flex', alignItems: 'center', gap: 6 }}>
@@ -156,12 +158,12 @@ function StreakCard({ habit, data, today }: { habit: Habit; data: AppData; today
       </div>
       <div className="streak-stats">
         <div>
-          <div className="streak-num">🔥 {cur}</div>
-          <div className="streak-label">racha actual</div>
+          <div className="streak-num">🔥 {cur.value}{cur.unit === 'sem' ? ' sem' : ''}</div>
+          <div className="streak-label">racha actual{cur.unit === 'sem' ? ' (sem)' : ''}</div>
         </div>
         <div>
-          <div className="streak-num">🏆 {best}</div>
-          <div className="streak-label">mejor racha</div>
+          <div className="streak-num">🏆 {best.value}{best.unit === 'sem' ? ' sem' : ''}</div>
+          <div className="streak-label">mejor ({unitLabel(best.unit)})</div>
         </div>
       </div>
     </div>
