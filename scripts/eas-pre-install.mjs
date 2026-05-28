@@ -2,7 +2,7 @@
 // Pre-install hook EAS. Corre ANTES de `npm install` en el server EAS.
 // node_modules NO está disponible — solo built-ins de Node.
 
-import { existsSync, lstatSync, readlinkSync, rmSync, symlinkSync, unlinkSync } from 'node:fs';
+import { existsSync, rmSync, symlinkSync, unlinkSync } from 'node:fs';
 import { resolve } from 'node:path';
 
 const platform = process.env.EAS_BUILD_PLATFORM || 'unknown';
@@ -16,52 +16,31 @@ console.log(`[eas-pre-install] node:     ${process.version}`);
 console.log(`[eas-pre-install] os:       ${process.platform} ${process.arch}`);
 console.log('================================================');
 
-// Solo si es build de iOS: crear symlink para que eas-cli/Xcode encuentre el .xcodeproj
-// donde Capacitor lo pone (ios/App/App.xcodeproj) bajo el nombre que EAS espera (ios/*.xcodeproj).
+// EAS asume estructura Expo (ios/<proj>.xcodeproj + ios/<target>/Info.plist),
+// pero Capacitor anida en ios/App/. Creamos symlinks a nivel ios/ con lo que
+// EAS espera. Corre en el Mac de EAS (darwin), por eso usa tipos 'dir'/'file'
+// directos (sin la lógica de junction de Windows).
+//   ios/App.xcodeproj  -> App/App.xcodeproj  (scheme detection de eas-cli)
+//   ios/App/Info.plist -> App/Info.plist     (paso "Configure Xcode project")
 if (platform === 'ios') {
-  console.log('[eas-pre-install] iOS detected — setting up xcodeproj symlink');
-  const target = 'App/App.xcodeproj';
-  const linkPath = resolve('ios', 'App.xcodeproj');
-
-  const realTarget = resolve('ios', target);
-  if (!existsSync(realTarget)) {
-    console.warn(`[eas-pre-install] WARN: target ${realTarget} doesn't exist yet — symlink may be broken`);
-  }
-
-  // Limpieza idempotente: intentar borrar lo que haya en linkPath (símbolo, dir, etc)
-  // ignorando errores de "no existe" o "permission denied" en Windows.
-  for (const fn of [
-    () => unlinkSync(linkPath),
-    () => rmSync(linkPath, { recursive: true, force: true }),
-  ]) {
-    try { fn(); break; } catch {}
-  }
-
-  try {
-    symlinkSync(target, linkPath, 'dir');
-    console.log(`[eas-pre-install] symlink OK: ios/App.xcodeproj -> ${target}`);
-  } catch (e) {
-    // Si EEXIST (Windows raro con readlink fallido), chequeamos que apunte al
-    // target correcto via readlinkSync — si sí, OK, continuamos.
-    if (e.code === 'EEXIST') {
-      try {
-        const current = readlinkSync(linkPath);
-        const normalized = current.replace(/\\/g, '/');
-        if (normalized === target || normalized.endsWith(target)) {
-          console.log(`[eas-pre-install] symlink already exists with correct target (${current})`);
-        } else {
-          console.warn(`[eas-pre-install] WARN: symlink exists but target is "${current}" (expected "${target}")`);
-        }
-      } catch {
-        console.warn('[eas-pre-install] WARN: linkPath exists but cannot read — continuing anyway');
-      }
-    } else {
-      console.error('[eas-pre-install] symlink FAILED:', e.message);
+  console.log('[eas-pre-install] iOS detected — setting up EAS-compat symlinks');
+  const links = [
+    { target: 'App/App.xcodeproj', link: resolve('ios', 'App.xcodeproj'), type: 'dir' },
+    { target: 'App/Info.plist', link: resolve('ios', 'App', 'Info.plist'), type: 'file' },
+  ];
+  for (const { target, link, type } of links) {
+    // Limpieza idempotente: borrar lo que haya (symlink/dir/file) antes de recrear.
+    for (const fn of [() => unlinkSync(link), () => rmSync(link, { recursive: true, force: true })]) {
+      try { fn(); break; } catch {}
+    }
+    try {
+      symlinkSync(target, link, type);
+      console.log(`[eas-pre-install] symlink OK: ${link} -> ${target}`);
+    } catch (e) {
+      console.error(`[eas-pre-install] symlink FAILED (${link}):`, e.message);
       process.exit(1);
     }
   }
-  // Removemos el import suelto sin uso si quedo
-  void lstatSync;
 } else {
   console.log(`[eas-pre-install] Skip iOS prep (platform=${platform})`);
 }

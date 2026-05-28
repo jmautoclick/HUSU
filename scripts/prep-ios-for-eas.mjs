@@ -1,35 +1,41 @@
 #!/usr/bin/env node
-// eas-cli hardcoded para buscar el .xcodeproj en `ios/*.xcodeproj` (1 nivel),
-// pero Capacitor pone el proyecto en `ios/App/App.xcodeproj` (2 niveles).
-// Creamos un symlink temporal `ios/App.xcodeproj` -> `ios/App/App.xcodeproj`
-// para que eas-cli encuentre el scheme correctamente.
+// EAS asume la estructura Expo: proyecto en ios/ y el Info.plist del target en
+// ios/<target>/Info.plist. Capacitor anida todo en ios/App/ (proyecto en
+// ios/App/App.xcodeproj, Info.plist en ios/App/App/Info.plist). Eso hace que
+// eas-cli no encuentre el scheme y que el paso "Configure Xcode project"
+// busque el Info.plist en ios/App/Info.plist (y falle con ENOENT).
 //
-// Symlinks preservan paths relativos del pbxproj, así que xcodebuild
-// resuelve las referencias internas correctamente.
+// Creamos symlinks temporales a nivel ios/ con exactamente lo que EAS espera:
+//   ios/App.xcodeproj   -> App/App.xcodeproj   (scheme detection de eas-cli)
+//   ios/App/Info.plist  -> App/Info.plist      (paso Configure Xcode project)
+// Son gitignored. xcodebuild usa los paths reales internos del pbxproj, así que
+// no interfieren con el build real.
 
-import { existsSync, lstatSync, rmSync, symlinkSync } from 'node:fs';
+import { rmSync, symlinkSync, unlinkSync } from 'node:fs';
 import { resolve } from 'node:path';
 
-const target = 'App/App.xcodeproj';
-const linkPath = resolve('ios', 'App.xcodeproj');
+const isWin = process.platform === 'win32';
 
-if (existsSync(linkPath)) {
-  // si ya hay symlink/dir, removerlo para forzar recreación limpia
-  try {
-    rmSync(linkPath, { recursive: true, force: true });
-  } catch (e) {
-    console.warn('[prep-ios] no pude limpiar existing:', e.message);
+const links = [
+  { target: 'App/App.xcodeproj', link: resolve('ios', 'App.xcodeproj'), kind: 'dir' },
+  { target: 'App/Info.plist', link: resolve('ios', 'App', 'Info.plist'), kind: 'file' },
+];
+
+for (const { target, link, kind } of links) {
+  // Cleanup idempotente: borrar lo que haya (symlink/junction/dir/file), ignorando
+  // errores. Más robusto que existsSync (que sigue symlinks rotos y puede mentir).
+  for (const fn of [() => unlinkSync(link), () => rmSync(link, { recursive: true, force: true })]) {
+    try { fn(); break; } catch { /* siguiente método */ }
   }
-}
-
-try {
-  // 'dir' funciona en Windows (junction); en Linux/macOS es symlink standard
-  const type = process.platform === 'win32' ? 'junction' : 'dir';
-  symlinkSync(target, linkPath, type);
-  console.log(`[prep-ios] symlink creado: ios/App.xcodeproj -> ${target}`);
-} catch (e) {
-  console.error('[prep-ios] symlink falló:', e.message);
-  console.error('[prep-ios] Si estás en Windows sin admin, ejecutá con privilegios elevados');
-  console.error('[prep-ios] o desde WSL (donde symlinks funcionan sin elevación)');
-  process.exit(1);
+  try {
+    // En Windows: 'junction' para dirs (no necesita admin), 'file' para files
+    // (sí necesita admin → mejor correr desde WSL). En Linux/macOS: 'dir'/'file'.
+    const type = isWin ? (kind === 'dir' ? 'junction' : 'file') : kind;
+    symlinkSync(target, link, type);
+    console.log(`[prep-ios] symlink: ${link} -> ${target}`);
+  } catch (e) {
+    console.error(`[prep-ios] symlink falló (${link}):`, e.message);
+    if (isWin) console.error('[prep-ios] En Windows los file-symlinks necesitan admin; corré desde WSL.');
+    process.exit(1);
+  }
 }

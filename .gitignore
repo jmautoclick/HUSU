@@ -44,8 +44,10 @@ keystore.properties
 *.aab
 *.apk
 
-# Symlink temporal generado por scripts/prep-ios-for-eas.mjs
+# Symlinks temporales generados por prep-ios-for-eas.mjs / eas-pre-install.mjs
+# (compat con EAS, que asume estructura Expo en vez de la de Capacitor)
 ios/App.xcodeproj
+ios/App/Info.plist
 
 # iOS build artifacts
 ios/App/Pods/
