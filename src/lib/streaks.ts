@@ -6,7 +6,13 @@ const MILESTONES = [3, 7, 14, 30, 66, 100, 365];
 
 export function currentStreak(habit: Habit, completions: Completions, today: Date = new Date(), freezesUsed: Record<string, Record<string, true>> = {}): number {
   let streak = 0;
-  const cursor = new Date(today);
+  // IMPORTANTE: stripear la hora del día. Antes era `new Date(today)` que
+  // mantenía la hora actual (ej 14:30), y la comparación de abajo
+  // `cursor.getTime() === stripTime(today).getTime()` (medianoche) NUNCA
+  // daba true en la iteración 0 → la rama "hoy no terminó, no rompas la
+  // racha" no corría → si no marcabas el hábito HOY todavía, la racha
+  // mostraba 0 en vez de N. Bug confirmado con test funcional.
+  const cursor = stripTime(today);
   let safety = 1000;
   while (safety-- > 0) {
     const k = dateKey(cursor);
