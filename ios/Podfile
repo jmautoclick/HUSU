@@ -1,0 +1,43 @@
+# Podfile en la RAÍZ de ios/ — para EAS Build.
+#
+# Capacitor pone su Podfile en ios/App/Podfile, pero EAS corre `pod install`
+# en el directorio ios/ (según la doc de Expo). Si no encuentra un Podfile
+# ahí, falla con "No Podfile found in the project directory".
+#
+# Este Podfile es un espejo del de ios/App/Podfile pero:
+#  - paths ajustados (../node_modules en vez de ../../node_modules, porque
+#    está un nivel más arriba)
+#  - `project 'App/App.xcodeproj'` apunta al proyecto real de Capacitor
+#
+# `pod install` acá genera ios/App.xcworkspace (que EAS buildea) referenciando
+# el proyecto en App/ + los Pods en ios/Pods. Mantener en sync con
+# ios/App/Podfile si se agregan/quitan plugins.
+
+require_relative '../node_modules/@capacitor/ios/scripts/pods_helpers'
+
+platform :ios, '15.0'
+use_frameworks!
+
+install! 'cocoapods', :disable_input_output_paths => true
+
+project 'App/App.xcodeproj'
+
+def capacitor_pods
+  pod 'Capacitor', :path => '../node_modules/@capacitor/ios'
+  pod 'CapacitorCordova', :path => '../node_modules/@capacitor/ios'
+  pod 'CapacitorApp', :path => '../node_modules/@capacitor/app'
+  pod 'CapacitorFilesystem', :path => '../node_modules/@capacitor/filesystem'
+  pod 'CapacitorHaptics', :path => '../node_modules/@capacitor/haptics'
+  pod 'CapacitorLocalNotifications', :path => '../node_modules/@capacitor/local-notifications'
+  pod 'CapacitorPreferences', :path => '../node_modules/@capacitor/preferences'
+  pod 'CapacitorShare', :path => '../node_modules/@capacitor/share'
+  pod 'CapacitorStatusBar', :path => '../node_modules/@capacitor/status-bar'
+end
+
+target 'App' do
+  capacitor_pods
+end
+
+post_install do |installer|
+  assertDeploymentTarget(installer)
+end
