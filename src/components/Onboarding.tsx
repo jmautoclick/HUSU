@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import { TEMPLATES, type HabitTemplate, CATEGORIES, IDENTITIES, IDENTITY_TO_CATEGORIES, TOP_RECOMMENDED_NAMES, CATEGORY_EMOJI } from '../lib/templates';
 import { describeFrequency } from '../lib/frequency';
+import { HusuPanda } from './HusuPanda';
 
 interface Props {
   onComplete: (selected: HabitTemplate[], identity?: string) => void;
@@ -51,7 +52,7 @@ export function Onboarding({ onComplete, onSkip }: Props) {
     return (
       <div className="onboarding-overlay">
         <div className="onboarding-content">
-          <div className="onboarding-hero">🐼</div>
+          <div className="onboarding-hero"><HusuPanda size={92} /></div>
           <h1 className="onboarding-title">Hola, soy Husu.</h1>
           <p className="onboarding-sub">
             Te acompaño a construir mejores rutinas, sin presión y a tu ritmo. Empezamos cuando vos quieras.

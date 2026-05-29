@@ -53,6 +53,12 @@ console.log('\n=== CLASSIFY: preguntas comunes → intent correcto ===');
     ['hace cuanto que no entreno', 'time_since'],
     ['¿cuántos días perfectos?', 'perfect_days_count'],
     ['estoy con muchas ganas de meditar', 'specific_habit'], // detecta "meditar"
+    // Nuevos (2.3): capabilities + más cobertura natural
+    ['¿qué podés hacer?', 'capabilities'],
+    ['ayuda', 'capabilities'],
+    ['¿en qué me ayudás?', 'capabilities'],
+    ['¿cómo vengo este mes?', 'monthly_review'],
+    ['¿qué día fallo más?', 'weekday_pattern'],
   ];
   for (const [q, want] of cases) {
     const got = getCoachResult(q, data).intent;

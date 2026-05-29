@@ -29,7 +29,7 @@ export type Intent =
   | 'journal_review'
   // NUEVO en 2.1
   | 'yesterday' | 'time_since' | 'compare_habits' | 'today_outlook' | 'sufficient_eval'
-  | 'daily_brief' | 'fallback';
+  | 'daily_brief' | 'capabilities' | 'fallback';
 
 interface Classification {
   intent: Intent;
@@ -85,23 +85,24 @@ interface IntentPattern {
 const INTENT_PATTERNS: IntentPattern[] = [
   { intent: 'greet', keywords: ['hola', 'que tal', 'buen dia', 'buenas', 'hey', 'hi ', 'hello'], weight: 3 },
   { intent: 'thanks', keywords: ['gracias', 'mil gracias', 'genial', 'buenisimo'], weight: 3 },
+  { intent: 'capabilities', keywords: ['que podes hacer', 'que sabes hacer', 'en que me ayudas', 'en que me podes ayudar', 'ayuda', 'que puedo preguntar', 'que te puedo preguntar', 'como funciona', 'que haces', 'para que servis', 'que sabes de mi', 'opciones', 'que mas'], weight: 3 },
 
   // Progreso
-  { intent: 'monthly_review', keywords: ['como voy', 'como estoy', 'mi mes', 'progreso', 'este mes', 'numeros del mes'], weight: 2 },
+  { intent: 'monthly_review', keywords: ['como voy', 'como estoy', 'como vengo', 'que tal voy', 'mi mes', 'progreso', 'este mes', 'numeros del mes', 'como vengo este mes'], weight: 2 },
   { intent: 'weekly_review', keywords: ['semana', 'esta semana', 'mi semana', 'como va la semana'], weight: 2 },
   { intent: 'year_review', keywords: ['año', 'ano', 'anual', 'numeros del año', 'mejor mes', 'mi año'], weight: 2 },
   { intent: 'perfect_days_count', keywords: ['perfectos', 'dias perfectos', 'cuantos perfectos'], weight: 3 },
   { intent: 'total_completions', keywords: ['cuantos en total', 'total de habitos', 'cuantos he completado', 'todos los que hice'], weight: 3 },
 
   // Patrones
-  { intent: 'weekday_pattern', keywords: ['que dia', 'dias que fallo', 'patron', 'dia de la semana', 'fallo mas', 'cual dia'], weight: 2 },
+  { intent: 'weekday_pattern', keywords: ['que dia', 'dias que fallo', 'patron', 'dia de la semana', 'fallo mas', 'cual dia', 'por que fallo', 'por que los', 'que dia me cuesta'], weight: 2 },
   { intent: 'time_of_day_analysis', keywords: ['mañana o noche', 'manana o noche', 'mañana o tarde', 'que horario', 'a que hora soy', 'mas constante mañana', 'mas constante de noche'], weight: 3 },
   { intent: 'habit_correlations', keywords: ['correlacion', 'van juntos', 'que habitos van', 'cuando hago x', 'que relacion', 'estan relacionados'], weight: 3 },
   { intent: 'weekend_vs_weekday', keywords: ['fin de semana', 'finde', 'sabados y domingos', 'semana vs finde'], weight: 3 },
 
   // Hábitos
   { intent: 'best_habit', keywords: ['mejor habito', 'top habito', 'destacado', 'cual va mejor', 'cual es mi mejor'], weight: 3 },
-  { intent: 'weakest_habit', keywords: ['necesita atencion', 'abandonando', 'peor habito', 'cual mejorar', 'mas atrasado', 'mas atrasada', 'cual estoy perdiendo'], weight: 3 },
+  { intent: 'weakest_habit', keywords: ['necesita atencion', 'abandonando', 'peor habito', 'cual mejorar', 'mas atrasado', 'mas atrasada', 'cual estoy perdiendo', 'me cuesta', 'no me sale', 'cual me cuesta', 'por que me cuesta', 'cual va peor'], weight: 3 },
   { intent: 'streak', keywords: ['racha', 'seguido', 'dias seguidos', 'cuanto llevo'], weight: 2 },
   { intent: 'abandoned_habit', keywords: ['abandone', 'hace tiempo que no', 'olvidado', 'deje de hacer', 'no hice mas', 'cual deje'], weight: 3 },
   { intent: 'habit_breakdown', keywords: ['analiza', 'analizame', 'breakdown', 'detallame', 'profundo', 'a fondo'], weight: 2 },
@@ -219,6 +220,15 @@ function thanksResponse(): string {
     'A vos. Seguimos.',
     'De nada. Que tengas buen día.',
   ]);
+}
+
+function capabilitiesResponse(data: AppData): string {
+  const n = data.habits.length;
+  const top = data.habits
+    .map(h => ({ h, s: currentStreak(h, data.completions, new Date(), data.freezesUsed) }))
+    .sort((a, b) => b.s - a.s)[0];
+  const ejemplo = top && top.s > 0 ? `cómo voy con ${top.h.name}` : 'cómo voy este mes';
+  return `Soy tu coach y conozco **todo tu historial** (${n} ${n === 1 ? 'hábito' : 'hábitos'}, rachas, patrones por día y franja horaria, lo que se cae). Puedo:\n• 📊 Analizar tu progreso — "cómo voy este mes", "mi semana"\n• 🔎 Detectar patrones — "qué día fallo más", "mañana o noche"\n• 🎯 Proyectar metas — "voy a llegar a la meta este mes"\n• 💡 Darte consejos basados en TU data real, no genéricos\n• ⚖️ Comparar hábitos — "compará leer con meditar"\n\nProbá ahora: "${ejemplo}".`;
 }
 
 function monthlyReview(data: AppData): string {
@@ -759,13 +769,42 @@ function journalReview(data: AppData): string {
 }
 
 function fallbackResponse(data: AppData): string {
-  const patterns = detectPatterns(data);
-  const insight = patterns.length > 0 ? patterns[0].text : null;
-  return pick([
-    'No te entendí del todo. Probá una de las sugerencias o pedime algo más concreto.',
-    `Mi capacidad es limitada. ${insight ? `Pero noté esto: ${insight}` : 'Pero puedo ayudarte con preguntas tipo "cómo voy" o "qué día fallo más".'}`,
-    insight ? `No estoy seguro qué me preguntás, pero te dejo un dato: ${insight}` : 'Probá: "¿cómo voy?" / "consejo" / "racha" / nombre de un hábito.',
-  ]);
+  // En vez de "no te entendí", devolvemos algo ÚTIL: un dato REAL de tus datos
+  // + preguntas concretas usando los nombres de TUS hábitos. Se siente menos
+  // "tonto" y guía hacia lo que el Coach sí sabe responder.
+  const insight = detectPatterns(data)[0]?.text;
+
+  // Hábito con mejor racha activa (para sugerir algo concreto y positivo)
+  const withStreak = data.habits
+    .map(h => ({ h, s: currentStreak(h, data.completions, new Date(), data.freezesUsed) }))
+    .sort((a, b) => b.s - a.s)[0];
+
+  // Hábito más flojo del mes (para sugerir foco)
+  const today = new Date();
+  const monthStart = new Date(today.getFullYear(), today.getMonth(), 1);
+  const weakest = data.habits
+    .map(h => {
+      let exp = 0, done = 0;
+      for (let d = new Date(monthStart); d <= today; d.setDate(d.getDate() + 1)) {
+        if (!isExpectedToday(h, d, data.completions)) continue;
+        exp++;
+        if (data.completions[dateKey(d)]?.[h.id]?.done) done++;
+      }
+      return { h, rate: exp > 0 ? done / exp : 1 };
+    })
+    .sort((a, b) => a.rate - b.rate)[0];
+
+  // Construir sugerencias concretas con nombres reales
+  const suggestions: string[] = [];
+  if (weakest && weakest.rate < 0.7) suggestions.push(`"¿por qué me cuesta ${weakest.h.name}?"`);
+  if (withStreak && withStreak.s > 0) suggestions.push(`"¿cómo voy con ${withStreak.h.name}?"`);
+  suggestions.push('"¿cómo voy este mes?"', '"dame un consejo"', '"¿qué tengo hoy?"');
+
+  const lead = insight
+    ? `No estoy seguro de qué me preguntaste, pero mirando tus datos: ${insight}`
+    : `No estoy seguro de qué me preguntaste — capaz lo pueda decir distinto.`;
+
+  return `${lead}\n\nProbá con algo así: ${suggestions.slice(0, 3).join(' · ')}`;
 }
 
 // ============ Nuevos composers 2.1 ============
@@ -1102,6 +1141,7 @@ function compose(cls: Classification, data: AppData): string {
   switch (cls.intent) {
     case 'greet': return greetResponse(data);
     case 'thanks': return thanksResponse();
+    case 'capabilities': return capabilitiesResponse(data);
     case 'monthly_review': return monthlyReview(data);
     case 'weekly_review': return weeklyReview(data);
     case 'year_review': return yearReview(data);

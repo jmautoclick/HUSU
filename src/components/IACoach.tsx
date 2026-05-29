@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { AppData } from '../lib/types';
+import { HusuPanda } from './HusuPanda';
 import {
   getCoachResult,
   proactiveInsight,
@@ -237,7 +238,7 @@ export function IACoach({ data, onSetKey: _onSetKey }: Props) {
   return (
     <>
       <div className="card coach-intro">
-        <div className="coach-avatar">🐼</div>
+        <div className="coach-avatar"><HusuPanda size={36} /></div>
         <div style={{ flex: 1 }}>
           <div className="coach-name">HusuAI</div>
           <div className="coach-tagline">
