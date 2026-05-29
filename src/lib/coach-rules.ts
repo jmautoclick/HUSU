@@ -29,7 +29,10 @@ export type Intent =
   | 'journal_review'
   // NUEVO en 2.1
   | 'yesterday' | 'time_since' | 'compare_habits' | 'today_outlook' | 'sufficient_eval'
-  | 'daily_brief' | 'capabilities' | 'fallback';
+  | 'daily_brief' | 'capabilities'
+  // NUEVO en 2.4 — lecciones, consejos por dominio, diagnóstico, priorización
+  | 'explain_concept' | 'domain_tips' | 'why_inconsistent' | 'where_to_start'
+  | 'fallback';
 
 interface Classification {
   intent: Intent;
@@ -106,6 +109,12 @@ const INTENT_PATTERNS: IntentPattern[] = [
   { intent: 'streak', keywords: ['racha', 'seguido', 'dias seguidos', 'cuanto llevo'], weight: 2 },
   { intent: 'abandoned_habit', keywords: ['abandone', 'hace tiempo que no', 'olvidado', 'deje de hacer', 'no hice mas', 'cual deje'], weight: 3 },
   { intent: 'habit_breakdown', keywords: ['analiza', 'analizame', 'breakdown', 'detallame', 'profundo', 'a fondo'], weight: 2 },
+
+  // NUEVO 2.4 — van ANTES de 'tip' para ganar empates en "tips/consejos para X"
+  { intent: 'explain_concept', keywords: ['habit stacking', 'apilar habito', 'apilamiento', 'regla de los 2', 'regla de los dos', '2 minutos', 'dos minutos', 'keystone', 'habito ancla', 'habito clave', 'efecto al diablo', 'al diablo', 'temptation bundling', 'tentacion bundling', '4 leyes', 'cuatro leyes', 'las leyes del cambio', 'diseno de entorno', 'never miss twice', 'no fallar dos veces', 'habitos atomicos', 'basado en identidad', 'que es un habito'], weight: 2 },
+  { intent: 'domain_tips', keywords: ['tips para', 'consejos para', 'como hago para', 'como hacer para', 'como logro', 'como mantengo', 'como empiezo a', 'como hago con', 'ayudame a', 'como sostengo'], weight: 3 },
+  { intent: 'why_inconsistent', keywords: ['por que abandono', 'por que no soy constante', 'por que siempre fallo', 'por que dejo todo', 'por que no puedo mantener', 'no soy constante', 'siempre abandono', 'por que recaigo', 'por que no logro mantener', 'no logro ser constante', 'por que me rindo'], weight: 3 },
+  { intent: 'where_to_start', keywords: ['por donde empiezo', 'por donde arranco', 'cual hago primero', 'por cual empiezo', 'con cual empiezo', 'por donde empezar', 'no se por donde', 'cual primero'], weight: 3 },
 
   // Consejos
   { intent: 'tip', keywords: ['consejo', 'tip', 'idea', 'recomenda', 'sugerencia', 'sugeri'], weight: 2 },
@@ -1142,6 +1151,10 @@ function compose(cls: Classification, data: AppData): string {
     case 'greet': return greetResponse(data);
     case 'thanks': return thanksResponse();
     case 'capabilities': return capabilitiesResponse(data);
+    case 'explain_concept': return explainConcept(cls.originalQuestion ?? '');
+    case 'domain_tips': return domainTips(data, cls.originalQuestion ?? '');
+    case 'why_inconsistent': return whyInconsistent(data);
+    case 'where_to_start': return whereToStart(data);
     case 'monthly_review': return monthlyReview(data);
     case 'weekly_review': return weeklyReview(data);
     case 'year_review': return yearReview(data);
@@ -1190,7 +1203,195 @@ export function getCoachResponse(question: string, data: AppData): string {
   return getCoachResult(question, data).text;
 }
 
-// ============ Suggestion catalog (36 questions, 6 categories) ============
+// ============ Conceptos / lecciones (estilo Atoms "daily lessons") ============
+const CONCEPTS: Record<string, { triggers: string[]; text: string }> = {
+  two_minute: {
+    triggers: ['regla de los 2', 'regla de los dos', '2 minutos', 'dos minutos', 'regla de dos'],
+    text: '**Regla de los 2 minutos** (James Clear): al arrancar un hábito, reducilo a algo que tarde ≤2 min. "Leer un libro" → "leer una página". "Meditar 20 min" → "respirar 1 min". Primero dominás el arte de aparecer; un hábito tiene que existir antes de poder mejorarlo.',
+  },
+  habit_stacking: {
+    triggers: ['habit stacking', 'apilar habito', 'apilamiento', 'encadenar habito'],
+    text: '**Habit stacking** (apilar hábitos): atá el hábito nuevo a uno que YA hacés. Fórmula: "Después de [hábito actual], voy a [hábito nuevo]". Ej: "Después de poner la pava, hago 5 sentadillas". El hábito viejo es el cue del nuevo — no dependés de la memoria.',
+  },
+  keystone: {
+    triggers: ['keystone', 'habito ancla', 'habito clave', 'habito piedra'],
+    text: '**Hábitos keystone** (piedra angular, Charles Duhigg): algunos hábitos disparan otros en cadena. El ejercicio suele mejorar sueño, comida y foco sin proponértelo. Si tenés poca energía, invertí en UN keystone en vez de 5 sueltos — el dominó hace el resto.',
+  },
+  what_the_hell: {
+    triggers: ['efecto al diablo', 'al diablo', 'que mas da', 'ya rompi todo'],
+    text: '**Efecto "al diablo"** (Polivy & Herman): fallás un día → "ya está, qué más da" → abandonás todo. El fallo no rompe el hábito; la espiral después sí. Regla de oro: nunca falles dos veces seguidas. Un día es accidente, dos es patrón nuevo.',
+  },
+  identity_based: {
+    triggers: ['habitos atomicos', 'atomic habits', 'basado en identidad', 'votos a la identidad'],
+    text: '**Hábitos basados en identidad** (Atomic Habits): no te enfoques en la meta ("leer 30 libros") sino en QUIÉN querés ser ("soy alguien que lee"). Cada hábito cumplido es un voto a esa identidad. Cambiás de afuera-adentro a adentro-afuera — y eso dura.',
+  },
+  temptation_bundling: {
+    triggers: ['temptation bundling', 'tentacion bundling', 'combinar placer'],
+    text: '**Temptation bundling** (Katy Milkman): combiná algo que TENÉS que hacer con algo que QUERÉS. "Solo escucho mi podcast favorito mientras corro". El placer le presta el empujón al hábito difícil.',
+  },
+  environment: {
+    triggers: ['diseno de entorno', 'disenar el entorno', 'el ambiente importa', 'el contexto importa'],
+    text: '**Diseño de entorno** (Wendy Wood, USC): el contexto manda más que la fuerza de voluntad. Hacé el buen hábito OBVIO (botella a la vista) y el malo INVISIBLE (celu en otra pieza). La voluntad se agota, el entorno no. No subas la cuesta — sacá la cuesta.',
+  },
+  four_laws: {
+    triggers: ['4 leyes', 'cuatro leyes', 'las leyes del cambio'],
+    text: '**Las 4 leyes del cambio** (Atomic Habits): para crear un hábito → 1) OBVIO (cue visible), 2) ATRACTIVO (asocialo a algo lindo), 3) FÁCIL (regla 2 min), 4) SATISFACTORIO (premio inmediato). Para romper uno malo, invertí cada ley: invisible, feo, difícil, insatisfactorio.',
+  },
+  never_miss_twice: {
+    triggers: ['never miss twice', 'no fallar dos veces', 'no falles dos'],
+    text: '**Nunca falles dos veces**: la regla más simple y poderosa. Fallar una vez es humano; dos seguidas arranca un hábito nuevo (malo). No tenés que ser perfecto — solo no encadenar fallos. Volvé al día siguiente, aunque sea con la versión mínima.',
+  },
+};
+
+function explainConcept(q: string): string {
+  const n = normalize(q);
+  for (const c of Object.values(CONCEPTS)) {
+    if (c.triggers.some(t => n.includes(t))) return c.text;
+  }
+  return 'Te puedo explicar conceptos de hábitos: **regla de los 2 minutos**, **habit stacking**, **hábitos keystone**, **efecto al diablo**, **hábitos basados en identidad**, **temptation bundling**, **diseño de entorno**, **las 4 leyes** y **nunca falles dos veces**. ¿Cuál querés que te explique?';
+}
+
+// ============ Consejos por TIPO de hábito (la táctica cambia según el dominio) ============
+const DOMAINS: Record<string, { triggers: string[]; tips: string[] }> = {
+  ejercicio: {
+    triggers: ['entrenar', 'entreno', 'ejercicio', 'gym', 'gimnasio', 'correr', 'running', 'pesas', 'deporte', 'caminar', 'fitness', 'actividad fisica'],
+    tips: [
+      'Ejercicio: dejá la ropa de gym lista la NOCHE anterior. Lo que te frena a la mañana es la fricción, no las ganas.',
+      'Ejercicio: si el gym está a +30 min, vas ~50% menos (geografía > willpower). Elegí algo cercano o en casa.',
+      'Ejercicio: la regla de los 2 minutos vale — "ponerme las zapatillas" cuenta. Una vez puestas, casi siempre salís.',
+      'Ejercicio: atalo a un cue fijo. "Después de [almuerzo/trabajo], entreno". El horario fijo automatiza más que la intensidad.',
+    ],
+  },
+  lectura: {
+    triggers: ['leer', 'lectura', 'libro', 'libros', 'leyendo'],
+    tips: [
+      'Lectura: dejá el libro sobre la almohada. Cue visible = lo agarrás. Una página cuenta — casi siempre seguís.',
+      'Lectura: reemplazá el scroll, no le sumes tiempo. "Cuando agarre el celu en la cama, agarro el libro".',
+      'Lectura: audiolibros para tiempos muertos (viaje, cocina). Suma sin pelear contra tu agenda.',
+      'Lectura: 10 páginas diarias le ganan a la maratón del finde. Constancia > volumen.',
+    ],
+  },
+  meditacion: {
+    triggers: ['meditar', 'meditacion', 'mindfulness', 'respiracion', 'respirar'],
+    tips: [
+      'Meditación: mismo lugar y hora siempre. El cerebro asocia el contexto y entra más rápido en modo.',
+      'Meditación: arrancá con 1 minuto, no 20. Al inicio el objetivo es la constancia, no la duración.',
+      'Meditación: atala al café o al cepillado (habit stacking) — algo que ya hacés sin pensar.',
+      'Meditación: si te cuesta solo, usá guiada (app/audio). Bajás la fricción de "no sé qué hacer".',
+    ],
+  },
+  sueno: {
+    triggers: ['dormir', 'sueno', 'descanso', 'acostarme', 'madrugar', 'descansar'],
+    tips: [
+      'Sueño: la hora CONSISTENTE de acostarte importa más que dormir 8h perfectas. Constancia > duración.',
+      'Sueño: sin pantallas 30-60 min antes (NSF). La luz azul corta la melatonina.',
+      'Sueño: ritual de cierre fijo (luz baja, té, lectura). Le avisa al cuerpo que se viene dormir.',
+      'Sueño: despertate a la misma hora aunque hayas dormido mal. Ancla el ritmo circadiano.',
+    ],
+  },
+  agua: {
+    triggers: ['agua', 'hidratacion', 'hidratar', 'tomar agua'],
+    tips: [
+      'Agua: botella SIEMPRE a la vista en el escritorio. Lo que ves, tomás.',
+      'Agua: un vaso después de cada comida (habit stacking). 3 comidas = 3 vasos sin pensarlo.',
+      'Agua: botella con marcas de horario. Convierte una meta abstracta en algo visible.',
+      'Agua: un vaso antes de cada café/mate. El cue ya está consolidado.',
+    ],
+  },
+  alimentacion: {
+    triggers: ['comer', 'dieta', 'alimentacion', 'comida', 'azucar', 'saludable', 'nutricion'],
+    tips: [
+      'Alimentación: no tengas la tentación en casa. No es voluntad, es no comprarla. Entorno > disciplina.',
+      'Alimentación: comé proteína/verdura PRIMERO. Te llenás de lo bueno y queda menos lugar para lo demás.',
+      'Alimentación: platos más chicos. La porción la decide el plato más que el hambre (Wansink).',
+      'Alimentación: cuidado con el efecto "al diablo" — un desliz no es el problema, la espiral después sí.',
+    ],
+  },
+  estudio: {
+    triggers: ['estudiar', 'estudio', 'curso', 'examen', 'aprender ingles'],
+    tips: [
+      'Estudio: bloques de 25 min con descanso (Pomodoro). El foco se sostiene en sprints, no en maratones.',
+      'Estudio: celular en OTRA pieza, no en silencio. Su sola presencia baja el rendimiento.',
+      'Estudio: mismo escritorio siempre. El contexto fijo dispara la concentración más rápido.',
+      'Estudio: atalo a un cue ("después de almorzar, 25 min"). La hora fija vence a "cuando tenga ganas".',
+    ],
+  },
+  pantallas: {
+    triggers: ['celular', 'pantalla', 'redes', 'scroll', 'telefono', 'instagram', 'tiktok'],
+    tips: [
+      'Pantallas: subí la fricción. Logout de las apps, sacalas de la home, celu en otra pieza al estudiar/dormir.',
+      'Pantallas: pantalla en escala de grises. Sin colores, el scroll pierde gran parte del enganche.',
+      'Pantallas: reemplazá, no prohíbas. "Cuando agarre el celu sin querer, agarro el libro o la botella".',
+      'Pantallas: timers por app. La fricción de "se acabó el tiempo" corta el piloto automático.',
+    ],
+  },
+  escritura: {
+    triggers: ['escribir', 'journal', 'diario', 'journaling', 'escritura'],
+    tips: [
+      'Journaling: 5 minutos alcanzan. La reflexión breve diaria mejora la adherencia del día siguiente (Lally).',
+      'Journaling: usá un prompt fijo ("¿qué salió bien hoy?") para no enfrentar la hoja en blanco.',
+      'Journaling: mismo cuaderno, misma hora (antes de dormir cierra el día). Ritual = constancia.',
+      'Journaling: 3 líneas cuentan. La regla de los 2 minutos también aplica a escribir.',
+    ],
+  },
+};
+
+function domainTips(data: AppData, q: string): string {
+  const n = normalize(q);
+  for (const d of Object.values(DOMAINS)) {
+    if (d.triggers.some(t => n.includes(t))) return pick(d.tips);
+  }
+  return tipResponse(data); // sin dominio detectado → consejo general
+}
+
+// ============ Diagnóstico: por qué no soy constante ============
+function whyInconsistent(data: AppData): string {
+  const today = new Date();
+  let abandoned = 0;
+  for (const h of data.habits) {
+    let lastDone: Date | null = null;
+    for (const [k, day] of Object.entries(data.completions)) {
+      if (!day[h.id]?.done) continue;
+      const d = parseDateKey(k);
+      if (!lastDone || d > lastDone) lastDone = d;
+    }
+    const days = lastDone ? Math.floor((today.getTime() - lastDone.getTime()) / 86400000) : 999;
+    if (days > 10) abandoned++;
+  }
+  const weakDay = detectPatterns(data).find(p => /los \w+ cumple solo/.test(p.text));
+
+  const lines: string[] = [
+    'No es falta de voluntad — la voluntad se agota. Casi siempre es una de estas tres:',
+    '**1) Demasiado de golpe.** Empezar con muchos hábitos tanquea las chances. Menos es más.',
+    '**2) El efecto "al diablo".** Fallás un día y abandonás todo. El fallo no rompe el hábito; la espiral sí. Regla: nunca falles dos veces.',
+    '**3) El entorno en contra.** Si el hábito no está obvio y fácil, perdés. Diseñá el contexto.',
+  ];
+  const personal: string[] = [];
+  if (data.habits.length > 5) personal.push(`Tenés **${data.habits.length} hábitos** — capaz son muchos. Probá enfocarte en 2-3 unas semanas.`);
+  if (weakDay) personal.push(weakDay.text);
+  if (abandoned >= 2) personal.push(`Hay ${abandoned} hábitos sin tocar hace +10 días. Decidí: ¿los recuperás chiquitos o los soltás? Cargar hábitos muertos pesa.`);
+  if (personal.length > 0) lines.push('\n**En tu caso:** ' + personal.join(' '));
+  return lines.join('\n');
+}
+
+// ============ Por dónde empezar / priorización ============
+function whereToStart(data: AppData): string {
+  if (data.habits.length === 0) {
+    return 'Empezá por UN hábito keystone (uno que dispara otros) — ejercicio, sueño o lectura suelen serlo. Hacelo en su versión de 2 minutos. Cuando sea automático (no antes), sumás el siguiente.';
+  }
+  if (data.habits.length >= 5) {
+    const top = data.habits
+      .map(h => ({ h, s: currentStreak(h, data.completions, new Date(), data.freezesUsed) }))
+      .sort((a, b) => b.s - a.s)[0];
+    const ancla = top && top.s > 0
+      ? `Tu ancla natural es "${top.h.name}" (mejor racha). Apoyate ahí y encadená el resto.`
+      : 'Elegí el más fácil de sostener como ancla y construí alrededor.';
+    return `Tenés ${data.habits.length} hábitos — son varios. La clave: concentrarte en 1-2, no repartido. ${ancla} Dominar pocos antes de sumar.`;
+  }
+  return 'Buen número para arrancar. Hacé cada uno en su versión más chiquita hasta que sea automático (mediana real: 66 días, Lally). No sumes el siguiente hasta que el actual corra solo.';
+}
+
+// ============ Suggestion catalog (categorías + preguntas) ============
 
 export interface SuggestionCategory {
   id: string;
@@ -1256,6 +1457,39 @@ export const SUGGESTION_CATEGORIES: SuggestionCategory[] = [
       'Tip para los lunes difíciles',
       '¿Cómo bajo la fricción?',
       'Consejo para mi rutina de mañana',
+      'Tips para entrenar de forma constante',
+      'Tips para leer más',
+      '¿Cómo hago para dormir mejor?',
+      'Tips para meditar todos los días',
+      '¿Cómo uso menos el celular?',
+    ],
+  },
+  {
+    id: 'porque',
+    emoji: '🤔',
+    label: '¿Por qué?',
+    questions: [
+      '¿Por qué no soy constante?',
+      '¿Por qué siempre abandono?',
+      '¿Por qué me cuesta este hábito?',
+      '¿Por qué fallo más algunos días?',
+      '¿Por dónde empiezo?',
+      '¿Cuál hago primero?',
+    ],
+  },
+  {
+    id: 'aprender',
+    emoji: '📚',
+    label: 'Aprender',
+    questions: [
+      '¿Qué es la regla de los 2 minutos?',
+      '¿Qué es el habit stacking?',
+      '¿Qué es un hábito keystone?',
+      'Explicame el efecto "al diablo"',
+      '¿Qué son los hábitos basados en identidad?',
+      '¿Cuáles son las 4 leyes del cambio?',
+      '¿Qué es el diseño de entorno?',
+      '¿Cuándo se forma un hábito de verdad?',
     ],
   },
   {

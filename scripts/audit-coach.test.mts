@@ -59,6 +59,18 @@ console.log('\n=== CLASSIFY: preguntas comunes → intent correcto ===');
     ['¿en qué me ayudás?', 'capabilities'],
     ['¿cómo vengo este mes?', 'monthly_review'],
     ['¿qué día fallo más?', 'weekday_pattern'],
+    // Nuevos (2.4): conceptos, dominios, diagnóstico, priorización
+    ['¿qué es el habit stacking?', 'explain_concept'],
+    ['¿qué es la regla de los 2 minutos?', 'explain_concept'],
+    ['explicame el efecto al diablo', 'explain_concept'],
+    ['tips para entrenar', 'domain_tips'],
+    ['¿cómo hago para dormir mejor?', 'domain_tips'],
+    ['consejos para leer más', 'domain_tips'],
+    ['¿por qué no soy constante?', 'why_inconsistent'],
+    ['¿por qué siempre abandono?', 'why_inconsistent'],
+    ['¿por dónde empiezo?', 'where_to_start'],
+    ['¿cuál hago primero?', 'where_to_start'],
+    ['dame un consejo', 'tip'], // NO debe robarlo domain_tips
   ];
   for (const [q, want] of cases) {
     const got = getCoachResult(q, data).intent;
@@ -71,6 +83,17 @@ console.log('\n=== CLASSIFY: mood bajo → demotivated/compasivo ===');
   const data = mkData([H('h1', 'Entrenar')]);
   const r = getCoachResult('estoy agotado, no doy mas', data);
   ok('"no doy mas" → demotivated', r.intent === 'demotivated', `GOT ${r.intent}`);
+}
+
+console.log('\n=== CONTENIDO 2.4: dominios y conceptos dan la respuesta correcta ===');
+{
+  const data = mkData([H('h1', 'Entrenar'), H('h2', 'Leer'), H('h3', 'Meditar')]);
+  ok('tips entrenar → contenido de ejercicio', /ejercicio/i.test(getCoachResult('tips para entrenar', data).text));
+  ok('dormir mejor → contenido de sueño', /sueño/i.test(getCoachResult('cómo hago para dormir mejor', data).text));
+  ok('regla 2 min → explica la regla', /2 minutos/i.test(getCoachResult('¿qué es la regla de los 2 minutos?', data).text));
+  ok('keystone → explica keystone', /keystone|piedra angular/i.test(getCoachResult('¿qué es un hábito keystone?', data).text));
+  ok('por qué no soy constante → diagnóstico', /voluntad|al diablo|entorno/i.test(getCoachResult('por qué no soy constante', data).text));
+  ok('por dónde empiezo → priorización', /keystone|enfoc|concentr|ancla|chiquita/i.test(getCoachResult('por dónde empiezo', data).text));
 }
 
 console.log('\n=== BATERÍA: getCoachResult nunca devuelve texto vacío ni crashea ===');
