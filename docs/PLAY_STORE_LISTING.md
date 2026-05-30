@@ -93,7 +93,7 @@ CÓMO EMPEZAR
 
 Husu es una herramienta, no una solución mágica. Pero si la usás todos los días, vas a notar la diferencia. Los hábitos chicos hacen vidas grandes.
 
-¿Comentarios, ideas, errores? Escribinos: juanmavives@gmail.com
+¿Comentarios, ideas, errores? Escribinos: jm@jmautoclick.com
 ```
 
 (~3.200 caracteres aproximadamente, dentro del límite de 4000)

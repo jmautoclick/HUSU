@@ -22,7 +22,7 @@ En Husu Habits creemos que tus hábitos son tuyos. Esta política te explica, si
 
 Husu Habits es una aplicación Android desarrollada de manera independiente. No somos una empresa con departamento de marketing ni con equipo de data: somos un proyecto chico hecho con la idea de que una app de hábitos no necesita espiarte para funcionar.
 
-Para cualquier consulta podés escribir a: **juanmavives@gmail.com**
+Para cualquier consulta podés escribir a: **jm@jmautoclick.com**
 
 ---
 
@@ -103,7 +103,7 @@ Si en el futuro cambiamos algo de cómo funciona la app y eso afecta esta polít
 
 ¿Dudas, preguntas, sugerencias, o querés que aclaremos algo?
 
-Escribinos a: **juanmavives@gmail.com**
+Escribinos a: **jm@jmautoclick.com**
 
 ---
 

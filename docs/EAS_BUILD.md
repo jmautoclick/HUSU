@@ -56,7 +56,7 @@ Editá `eas.json` y reemplazá los 2 placeholders:
 "submit": {
   "production": {
     "ios": {
-      "appleId": "juanmavives@gmail.com",
+      "appleId": "jm@jmautoclick.com",
       "ascAppId": "1234567890",          ← Apple ID numérico de la app (10 dígitos)
       "appleTeamId": "ABC123XYZ9"        ← Team ID (10 chars, en developer.apple.com → Membership)
     },
