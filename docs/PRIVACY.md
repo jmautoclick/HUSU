@@ -1,6 +1,8 @@
 # Política de Privacidad — Husu Habits
 
-**Última actualización: 2026-05-10**
+**Última actualización: 2026-05-29**
+
+> Versión hosteable (HTML) en `docs/privacy.html`. Ambas dicen lo mismo.
 
 En Husu Habits creemos que tus hábitos son tuyos. Esta política te explica, sin vueltas ni letra chica, qué pasa con tu información cuando usás la app.
 
