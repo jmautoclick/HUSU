@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { AppData } from '../lib/types';
 import { HusuPanda } from './HusuPanda';
+import { SourcesModal } from './SourcesModal';
 import {
   getCoachResult,
   proactiveInsight,
@@ -108,6 +109,7 @@ export function IACoach({ data, onSetKey: _onSetKey }: Props) {
   const [thinking, setThinking] = useState(false);
   const [activeCategory, setActiveCategory] = useState<string>(SUGGESTION_CATEGORIES[0].id);
   const [listening, setListening] = useState(false);
+  const [showSources, setShowSources] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const recognitionRef = useRef<any>(null);
 
@@ -244,8 +246,13 @@ export function IACoach({ data, onSetKey: _onSetKey }: Props) {
           <div className="coach-tagline">
             Tu coach de hábitos. Conozco todo tu historial — patrones, rachas, lo que se cae. Preguntame lo que quieras.
           </div>
+          <button className="sources-btn" onClick={() => setShowSources(true)}>
+            📚 Fuentes y ciencia
+          </button>
         </div>
       </div>
+
+      {showSources && <SourcesModal onClose={() => setShowSources(false)} />}
 
       {insight && messages.length === 0 && (
         <div className="proactive-insight">{renderBold(insight)}</div>

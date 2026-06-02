@@ -1303,7 +1303,7 @@ const DOMAINS: Record<string, { triggers: string[]; tips: string[] }> = {
     tips: [
       'Alimentación: no tengas la tentación en casa. No es voluntad, es no comprarla. Entorno > disciplina.',
       'Alimentación: comé proteína/verdura PRIMERO. Te llenás de lo bueno y queda menos lugar para lo demás.',
-      'Alimentación: platos más chicos. La porción la decide el plato más que el hambre (Wansink).',
+      'Alimentación: platos más chicos. El tamaño de la porción influye en cuánto comés (revisión Cochrane 2015 — ver Fuentes).',
       'Alimentación: cuidado con el efecto "al diablo" — un desliz no es el problema, la espiral después sí.',
     ],
   },
