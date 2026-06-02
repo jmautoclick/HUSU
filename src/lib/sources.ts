@@ -24,7 +24,7 @@ export const SOURCES: Source[] = [
   {
     topic: 'Cuánto tarda en formarse un hábito: mediana de ~66 días (no 21)',
     citation: 'Lally, P., van Jaarsveld, C. H. M., Potts, H. W. W., & Wardle, J. (2010). How are habits formed: Modelling habit formation in the real world. European Journal of Social Psychology, 40(6), 998–1009. (University College London)',
-    url: 'https://onlinelibrary.wiley.com/doi/10.1002/ejsp.674',
+    url: 'https://doi.org/10.1002/ejsp.674',
   },
   {
     topic: 'El entorno y el contexto influyen más que la fuerza de voluntad',

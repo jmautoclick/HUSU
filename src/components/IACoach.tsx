@@ -298,6 +298,11 @@ export function IACoach({ data, onSetKey: _onSetKey }: Props) {
               {renderBold(m.text)}
               {isTyping && <span className="cursor-blink">▍</span>}
             </div>
+            {m.role === 'bot' && m.typed && (
+              <button className="msg-sources-link" onClick={() => setShowSources(true)}>
+                📚 Fuentes y ciencia
+              </button>
+            )}
             {isLastBot && m.typed && m.followUps && m.followUps.length > 0 && (
               <div className="follow-ups">
                 {m.followUps.map(q => (

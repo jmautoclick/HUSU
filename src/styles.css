@@ -795,6 +795,17 @@ h1, h2, h3, .display {
 }
 .sources-btn:active { transform: scale(0.97); }
 
+/* Link "Fuentes" debajo de cada respuesta del Coach (reachable junto al consejo) */
+.msg-sources-link {
+  display: inline-block;
+  margin: 2px 0 10px 4px;
+  background: none; border: none;
+  color: var(--clay); opacity: 0.8;
+  font-size: 11px; font-weight: 700;
+  cursor: pointer; padding: 0;
+}
+.msg-sources-link:active { opacity: 0.5; }
+
 .sources-modal {
   max-width: 460px;
   max-height: 84vh;
