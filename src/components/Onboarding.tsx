@@ -107,6 +107,9 @@ export function Onboarding({ onComplete, onSkip }: Props) {
           <p className="onboarding-sub-sm">
             Empezá con pocos. La constancia gana a la cantidad — recomendamos hasta {MAX_RECOMMENDED}. Deslizá las categorías →
           </p>
+          <p className="onboarding-sub-sm" style={{ fontSize: 11, opacity: 0.65, marginTop: 4 }}>
+            Husu te ayuda a construir hábitos; no brinda consejos médicos. Ante dudas de salud, consultá a un profesional.
+          </p>
 
           <div className="category-tabs-wrap">
             <div className="category-tabs">

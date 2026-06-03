@@ -37,6 +37,10 @@ export function Habitos({ data, onAdd, onAddMany, onUpdate, onSetReminder, onDel
       <button className="fab-button primary" onClick={() => setCreating(true)}>+ Nuevo hábito</button>
       <button className="fab-button" onClick={() => setShowTemplates(true)}>Ver plantillas sugeridas</button>
 
+      <p style={{ fontSize: 11, color: 'var(--text-faint)', margin: '2px 4px 0', lineHeight: 1.4 }}>
+        Husu te ayuda a construir hábitos; no brinda consejos médicos. Ante dudas de salud, consultá a un profesional.
+      </p>
+
       <div className="section-label">Tus hábitos ({data.habits.length})</div>
 
       {data.habits.length === 0 && (
